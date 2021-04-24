@@ -84,7 +84,7 @@ class SceneA extends Phaser.Scene {
 
             this.add.rectangle ( xp, yp, sw, sh, clr, 0.9 ).setStrokeStyle ( 5, 0xfefefe );
 
-            this.add.text ( xp, yp, i, { color:'#fff', fontFamily:'Oswald', fontSize: 20 }).setOrigin(0.5);
+            this.add.text ( xp + 60, yp - 30, i, { color:'#fff', fontFamily:'Oswald', fontSize: 20 }).setOrigin(0.5);
 
             this.gridData.push ( { 'x': xp, 'y': yp, 'resident' : 0, 'residentPiece' : '' });
         
@@ -510,49 +510,67 @@ class SceneA extends Phaser.Scene {
 
     }
 
-    createBlinkers ( piecePost  ) {
+    createBlinkers ( piecePost, proper = false  ) {
 
         this.blinkersCont = this.add.container ( 0, 0);
 
-        for ( let i = 0; i < 27; i++ ) {
+        if ( !proper ) {
 
-            if ( (i+45) != piecePost ){
-            
-                let xp = this.gridData [i + 45].x, yp = this.gridData [ i+45 ].y;
+            for ( let i = 0; i < 27; i++ ) {
 
-                const cnt = this.add.container ( xp, yp ).setSize ( 190, 114 ).setInteractive();
+                if ( (i+45) != piecePost ){
+                
+                    let xp = this.gridData [i + 45].x, yp = this.gridData [ i+45 ].y;
 
-                const rct = this.add.rectangle ( 0, 0, 190, 114, 0x0a0a0a, 0.3 );
+                    const blinka = new MyBlinkers ( this, xp, yp, 190, 114, 'blink'+i, i+45, 4, true );
 
-                const crc = this.add.circle ( 0, 0, 10, 0xffff00 );
-            
-                this.add.tween ({
-                    targets : crc,
-                    scale : 0.8,
-                    yoyo : true,
-                    duration : 300,
-                    repeat : -1
-                });
+                    blinka.on ('pointerdown', () => {
+                        this.playSound ('clicka');
+                    });
 
-                cnt.add ( [ rct, crc ]);
+                    blinka.on ('pointerup', () => {
 
-                cnt.on ('pointerdown', () => {
+                        //console.log (i);
+                        
+                        this.removeBlinkers ();
+
+                        this.switchPiecesPosition ( blinka.post );
+
+                    }); 
+
+                    this.blinkersCont.add ( blinka );
+
+                }
+
+            }
+        }else {
+
+            const adjArr = this.getOpenAdjacent ( piecePost, 1 );
+
+            for ( let i in adjArr ) {
+
+                let xp = this.gridData [ adjArr[i].post ].x, yp = this.gridData [ adjArr[i].post ].y;
+
+                const blinkb = new MyBlinkers ( this, xp, yp, 190, 114, 'blink'+i, adjArr[i].post, adjArr[i].dir, true );
+
+                blinkb.on ('pointerdown', () => {
                     this.playSound ('clicka');
                 });
 
-                cnt.on ('pointerup', () => {
+                blinkb.on ('pointerup', () => {
 
                     //console.log (i);
                     
                     this.removeBlinkers ();
 
-                    this.switchPiecesPosition ( i + 45 );
+                    this.movePiece ( blinkb.post );
 
                 }); 
 
-                this.blinkersCont.add ( cnt );
+                this.blinkersCont.add ( blinkb );
 
             }
+
 
         }
 
@@ -625,49 +643,116 @@ class SceneA extends Phaser.Scene {
 
         if ( !this.controlsHidden ) this.showControls (false);
 
-        // if ( this.pieceClicked != piece.id ) {
+        if ( this.pieceClicked != piece.id ) {
 
-        //     piece.setPicked ();
 
-        //     this.pieceClicked = piece.id;
+            if ( this.pieceClicked != '') {
+
+                const prevPiece = this.piecesCont.getByName ( this.pieceClicked );
+
+                prevPiece.setPicked (false);
+
+                this.removeBlinkers();
+            }
+            
+
+            piece.setPicked ();
+
+            this.pieceClicked = piece.id;
+
+            this.createBlinkers ( piece.post, false );
 
             
-        //     this.createBlinkers ( piece.post );
         
-        // }else {
+        }else {
 
-        //     piece.setPicked ( false );
+            piece.setPicked ( false );
 
-        //     this.pieceClicked = '';
+            this.pieceClicked = '';
 
-        //     this.removeBlinkers ();
-        // }
+            this.removeBlinkers ();
+        }
 
         
-        console.log ( this.getOpenAdjacent( piece.post ) );
 
     }
 
-    getOpenAdjacent ( pos ) 
+    getOpenAdjacent ( pos, res ) 
     {
         const r = Math.floor ( pos/9 ), c = pos % 9;
 
-        //left 
         let arr = [];
 
 
-        if ( r-1 > 0 ) arr.push ({ 'dir' : 'left', 'pos' : ((r-1) * 9) + c });
+        if ( c-1 >=0 ) {
 
-        if ( r+1 < 9 ) arr.push ({ 'dir' : 'right', 'pos' : ((r+1) * 9) + c });
-        
-        if ( c-1 > 0 ) arr.push ({ 'dir' : 'top', 'pos' : ( r * 9) + ( c - 1 ) });
-        
-        if ( c+1 < 8 ) arr.push ({ 'dir' : 'bottom', 'pos' : ( r * 9) + ( c + 1 ) });
+            const left = (r * 9) + (c - 1);
+
+            if ( this.gridData [ left ].resident != res )  arr.push ({ dir: 0, post : left });
+
+        }
+
+        if ( c+1 < 9 ) {
+
+            const right = (r * 9) + (c + 1);
+
+            if ( this.gridData [ right ].resident != res )  arr.push ({ dir: 2, post : right });
+        }
+
+        if ( r-1 >= 0 ) {
+
+            const top = ( (r-1) * 9) + c;
+
+            if ( this.gridData [ top ].resident != res )  arr.push ({ dir: 1, post : top });
+
+        }
+
+        if ( r+1 < 8  ) {
+
+            const bottom = ( (r+1) * 9) + c;
+
+            if ( this.gridData [ bottom ].resident != res )  arr.push ({  dir: 3, post : bottom });
+            
+        }
         
         return arr;
 
     }
 
+    movePiece ( post ) 
+    {
+        const clicked = this.piecesCont.getByName ( this.pieceClicked );
+        
+        const origin = clicked.post;
+
+        //const destOccupied = this.gridData [ gridPos ].resident !== 0;
+
+        //..    
+        this.add.tween ({
+            targets : clicked,
+            x: this.gridData [ post ].x,
+            y: this.gridData [ post ].y,
+            duration : 200,
+            ease : 'Power3'
+        });
+        
+        clicked.post = post;
+
+        clicked.setPicked (false);
+
+        this.gridData [ post ].resident = 1;
+
+        this.gridData [ post ].residentPiece = clicked.id;
+
+
+        // empty origin..
+        this.gridData [ origin ].resident = 0;
+
+        this.gridData [ origin ].residentPiece = '';
+
+        //..
+        this.pieceClicked = '';
+    }
 
     showControls ( shown = true )
     {
@@ -933,7 +1018,7 @@ class SceneA extends Phaser.Scene {
             this.removePrompt();
             
             
-            this.createGamePieces ('self', 1, true, true);
+            this.createGamePieces ('self', 0, true, true);
 
             //this.createGamePieces ('oppo', 1, false, false );
 

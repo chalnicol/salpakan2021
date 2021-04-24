@@ -36,7 +36,7 @@ class GamePiece extends Phaser.GameObjects.Container {
         const chipRotation = Phaser.Math.DegToRad ( base == 0 ? 0 : 180 );
 
         
-        const bg = this.scene.add.image (0, 0, 'chips', chipClr ).setRotation ( chipRotation );
+        const bg = this.scene.add.image (0, 0, 'pieces', chipClr * 2 ).setRotation ( chipRotation );
 
         const img = this.scene.add.image (0, 0, 'piecesElements', chipClr == 0 ? 15 : 16 ).setVisible ( !flippedUp );
 
@@ -47,10 +47,10 @@ class GamePiece extends Phaser.GameObjects.Container {
         this.add ([ bg, img, rnk, txt ]);
 
         this.on ('pointerover', function () {
-            if ( !this.isPicked ) this.first.setTint ( 0xdedede );
+            if ( !this.isPicked ) this.first.setFrame ( (this.chipClr * 2) + 1 );
         });
         this.on ('pointerout', function () {
-            if ( !this.isPicked ) this.first.clearTint ();
+            if ( !this.isPicked ) this.first.setFrame ( (this.chipClr * 2) );
         });
         this.on ('pointerdown', function () {
             //..
@@ -70,9 +70,9 @@ class GamePiece extends Phaser.GameObjects.Container {
         // console.log ( this.chipClr );
 
         if ( picked ) {
-            this.first.setTint ( this.chipClr == 0 ? 0xffff99 : 0xffff00 );
+            this.first.setFrame ( (this.chipClr * 2) + 1 );
         }else {
-            this.first.clearTint ();
+            this.first.setFrame ( (this.chipClr * 2) );
         }
 
     }

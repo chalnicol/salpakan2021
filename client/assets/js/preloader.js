@@ -54,7 +54,7 @@ class Preloader extends Phaser.Scene {
 
         this.load.spritesheet('menubtns', 'client/assets/images/menubtns.png', { frameWidth: 400, frameHeight: 400 });
 
-        this.load.spritesheet('chips', 'client/assets/images/chips.png', { frameWidth: 190, frameHeight: 114 });
+        this.load.spritesheet('pieces', 'client/assets/images/pieces.png', { frameWidth: 190, frameHeight: 114 });
 
         this.load.spritesheet('imgBtns', 'client/assets/images/imgBtns.png', { frameWidth: 100, frameHeight: 100 });
 
@@ -64,6 +64,7 @@ class Preloader extends Phaser.Scene {
 
         this.load.spritesheet('conts_sm', 'client/assets/images/controls_sm.png', { frameWidth: 100, frameHeight: 100 });
 
+        this.load.spritesheet('blinkers', 'client/assets/images/blinkers.png', { frameWidth: 75, frameHeight: 75 });
         
 
         //progress bar
