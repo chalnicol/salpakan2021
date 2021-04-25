@@ -42,6 +42,8 @@ class Preloader extends Phaser.Scene {
 
         this.load.image('vs', 'client/assets/images/versus.png');
 
+        this.load.image('commence', 'client/assets/images/commence.png');
+
         this.load.spritesheet('burger', 'client/assets/images/burger.png', { frameWidth: 90, frameHeight: 90 });
 
         this.load.spritesheet('piecesElements', 'client/assets/images/piecesElements.png', { frameWidth: 75, frameHeight: 75 });

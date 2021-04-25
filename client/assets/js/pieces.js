@@ -77,5 +77,12 @@ class GamePiece extends Phaser.GameObjects.Container {
 
     }
     
+    captured () {
+
+        this.isCaptured = true;
+
+        this.setVisible ( false ).removeInteractive ();
+
+    }
 
 }

@@ -13,7 +13,7 @@ class MyBlinkers extends Phaser.GameObjects.Container {
         
         if ( activated ) this.setInteractive ();
 
-        const rct = this.scene.add.rectangle ( 0, 0, w, h, 0x66ff66, 0.5 );
+        const rct = this.scene.add.rectangle ( 0, 0, w, h, 0x66ff66, 0.3 );
 
         const img = this.scene.add.image ( 0, 0, 'blinkers', frm );
 
@@ -21,7 +21,7 @@ class MyBlinkers extends Phaser.GameObjects.Container {
             targets : img,
             alpha : 0,
             yoyo : true,
-            duration : 400,
+            duration : 500,
             repeat : -1
         });
 
