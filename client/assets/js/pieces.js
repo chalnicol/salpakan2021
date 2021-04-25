@@ -1,6 +1,6 @@
 class GamePiece extends Phaser.GameObjects.Container {
 
-    constructor(scene, x, y, w, h, id, chipClr, base, post, rank, rankName, flippedUp = true, activated = false) {
+    constructor(scene, x, y, w, h, id, player, pieceClr, base, post, rank, rankName, flippedUp = true, activated = false) {
 
         super( scene, x, y, [] );
 
@@ -10,11 +10,13 @@ class GamePiece extends Phaser.GameObjects.Container {
 
         this.id = id;
 
+        this.player = player
+
         this.base = base;
 
         this.post = post;
         
-        this.chipClr = chipClr;
+        this.pieceClr = pieceClr;
 
         this.rank = rank;
 
@@ -31,14 +33,14 @@ class GamePiece extends Phaser.GameObjects.Container {
         
 
         //..
-        const txtClr = chipClr == 0 ? '#3e3e3e' : '#c3c3c3';
+        const txtClr = pieceClr == 0 ? '#3e3e3e' : '#c3c3c3';
 
         const chipRotation = Phaser.Math.DegToRad ( base == 0 ? 0 : 180 );
 
         
-        const bg = this.scene.add.image (0, 0, 'pieces', chipClr * 2 ).setRotation ( chipRotation );
+        const bg = this.scene.add.image (0, 0, 'pieces', pieceClr * 2 ).setRotation ( chipRotation );
 
-        const img = this.scene.add.image (0, 0, 'piecesElements', chipClr == 0 ? 15 : 16 ).setVisible ( !flippedUp );
+        const img = this.scene.add.image (0, 0, 'piecesElements', pieceClr == 0 ? 15 : 16 ).setVisible ( !flippedUp );
 
         const rnk = this.scene.add.image (0, -10, 'piecesElements', rank - 1 ).setVisible ( flippedUp );;
 
@@ -47,10 +49,10 @@ class GamePiece extends Phaser.GameObjects.Container {
         this.add ([ bg, img, rnk, txt ]);
 
         this.on ('pointerover', function () {
-            if ( !this.isPicked ) this.first.setFrame ( (this.chipClr * 2) + 1 );
+            if ( !this.isPicked ) this.first.setFrame ( (this.pieceClr * 2) + 1 );
         });
         this.on ('pointerout', function () {
-            if ( !this.isPicked ) this.first.setFrame ( (this.chipClr * 2) );
+            if ( !this.isPicked ) this.first.setFrame ( (this.pieceClr * 2) );
         });
         this.on ('pointerdown', function () {
             //..
@@ -63,16 +65,31 @@ class GamePiece extends Phaser.GameObjects.Container {
 
     }
 
+    isFlagAndCaptured () {
+
+        if ( this.rank == 14 && this.isCaptured ) return true;
+
+        return false;
+    }
+
+    isFlagAndHome () {
+
+        const r = Math.floor ( this.post/9 );
+
+        if ( ( this.rank == 14 && this.base == 0 && r == 0 ) || ( this.rank == 14 && this.base == 1 && r == 7 ) ) return true;
+
+        return false;
+        
+    }
+
     setPicked ( picked = true ) {
 
         this.isPicked = picked;
 
-        // console.log ( this.chipClr );
-
         if ( picked ) {
-            this.first.setFrame ( (this.chipClr * 2) + 1 );
+            this.first.setFrame ( (this.pieceClr * 2) + 1 );
         }else {
-            this.first.setFrame ( (this.chipClr * 2) );
+            this.first.setFrame ( (this.pieceClr * 2) );
         }
 
     }
@@ -83,7 +100,7 @@ class GamePiece extends Phaser.GameObjects.Container {
         
         this.isCaptured = true;
 
-        this.removeInteractive ().setVisible (false);
+        this.removeInteractive ().setPosition ( 0, 0 ).setVisible (false);
 
     }
 

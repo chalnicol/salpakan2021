@@ -67,6 +67,8 @@ class SceneA extends Phaser.Scene {
 
         this.players = {};
 
+        this.controlsHidden = true;
+
         
         //add bg
         this.add.image ( 960, 540, 'bg'); 
@@ -92,6 +94,33 @@ class SceneA extends Phaser.Scene {
         
         }
 
+     
+        //add burger for controls
+        let brgr = this.add.image (1844, 66, 'burger').setInteractive();
+
+        brgr.on('pointerover', () => {
+            brgr.setFrame(1);
+        });
+        brgr.on('pointerout', () => {
+            brgr.setFrame(0);
+        });
+        brgr.on('pointerdown', () => {
+
+            this.playSound ('clicka');
+            
+            brgr.setFrame(2);
+        });
+        brgr.on('pointerup', () => {
+            
+            brgr.setFrame(0);
+
+            this.controlsHidden = !this.controlsHidden;
+
+            this.showControls ( !this.controlsHidden );
+
+        });
+
+
         //add pieces container..
         this.piecesCont = this.add.container (0, 0);
 
@@ -106,11 +135,25 @@ class SceneA extends Phaser.Scene {
 
         this.createPlayersIndicator ();
 
+        this.createCapturedContainer ();
+
         this.createControls ();
 
-        //this.createAnimations();
-
         this.startPrep ();
+
+
+    }
+
+    createCapturedContainer ()
+    {
+
+        console.log ('this..');
+
+        this.capturedCont = this.add.container ( 0, 1080);
+
+        const bg = this.add.image ( 960, 540, 'capturedbg' );
+
+        this.capturedCont.add ( bg );
 
 
     }
@@ -229,51 +272,29 @@ class SceneA extends Phaser.Scene {
     
     }
     
-    createControls () 
+    createControls ( proper = false ) 
     {
-
-        this.controlsHidden = true;
-
-        let brgr = this.add.image (1844, 66, 'burger').setInteractive();
-
-        brgr.on('pointerover', () => {
-            brgr.setFrame(1);
-        });
-        brgr.on('pointerout', () => {
-            brgr.setFrame(0);
-        });
-        brgr.on('pointerdown', () => {
-
-            this.playSound ('clicka');
-            
-            brgr.setFrame(2);
-        });
-        brgr.on('pointerup', () => {
-            
-            brgr.setFrame(0);
-
-            this.controlsHidden = !this.controlsHidden;
-
-            this.showControls ( !this.controlsHidden );
-
-        });
-
+        
         //..
-        this.controlBtnsCont = this.add.container (1920,0);
 
-        const rct = this.add.rectangle ( 0, 134, 300, 954, 0x0a0a0a, 0.8 ).setOrigin (0);
+        const cntW = 800, cntH = 380;
+
+        this.controlBtnsCont = this.add.container ( 1920, 0).setDepth (9999);
+
+        const rct = this.add.rectangle ( 0, 150, cntW, cntH, 0x3a3a3a, 0.7 ).setOrigin (0);
 
         this.controlBtnsCont.add ( rct );
 
+        
         //..
 
-        const btnArr = [ 'exit', 'emoji', 'sound', 'music' ];
+        const btnsTop = 220, btnsLeft = 150;
 
-        for ( let i in btnArr ) {
+        const btnArr = [ 'leave', 'emoji', 'sound', 'music' ];
 
-            let ix = Math.floor (i/2), iy = i%2;
+        for ( let i=0; i<btnArr.length; i++ ) {
 
-            let xp = 90 + ( iy*130), yp = 218 + (ix * 160);
+            let xp = btnsLeft + (i * 120), yp = btnsTop;
 
             let btnCont = new MyButton ( this, xp, yp, 100, 100, btnArr[i], 'conts_sm', 'imgBtns', i ).setName (btnArr[i]);
 
@@ -282,7 +303,7 @@ class SceneA extends Phaser.Scene {
                 this.btnState ('idle');
 
                 switch (this.id) {
-                    case 'exit':
+                    case 'leave':
                         
                         this.scene.showControls ( false );
 
@@ -332,14 +353,14 @@ class SceneA extends Phaser.Scene {
 
         //main btns..
 
-        const mainBtnArr = ['random', 'preset', 'ready'];
+        let mainBtnArr = ( proper ) ?  ['preset', 'random', 'ready'] : [ 'draw', 'da', 'de'] ;
 
-        for ( let i in mainBtnArr ) {
 
-            
-            let xp = 150, yp = 740 + (i * 120);
+        for ( let i=0; i<mainBtnArr.length; i++ ) {
+  
+            let xp = btnsLeft + (i * 120), yp = btnsTop + 200;
 
-            let mainBtn = new MyButton ( this, xp, yp, 100, 100, mainBtnArr[i], 'promptbtns', '', 0, mainBtnArr[i], 40 );
+            let mainBtn = new MyButton ( this, xp, yp, 100, 100, mainBtnArr[i], 'conts_sm', 'imgBtns',  i + 6 );
 
             mainBtn.on('pointerdown', function () {
                 
@@ -385,12 +406,36 @@ class SceneA extends Phaser.Scene {
                
             });
 
-            this.controlBtnsCont.add ( mainBtn )
+            const txt = this.add.text (xp, yp + 70, mainBtnArr[i], { color : '#fff', fontFamily:'Oswald', fontSize: 24 }).setOrigin(0.5);
+
+            this.controlBtnsCont.add ( [mainBtn, txt] );
 
         }
 
 
     }
+
+    showControls ( shown = true )
+    {
+
+        this.controlsHidden = !shown;
+
+        this.add.tween ({
+            targets : this.controlBtnsCont,
+            x : ( shown ) ? 1120 : 1920,
+            duration : 500,
+            ease : 'Power3',
+        });
+
+
+    }
+
+    replaceMainControls () {
+
+
+
+    }
+
 
     //..
 
@@ -408,11 +453,13 @@ class SceneA extends Phaser.Scene {
 
                 let post = (plyr == 'self') ? postArr[counter] + 45 : postArr[counter];
 
+                let base = plyr == 'self' ? 0 : 1;
+
                 const xp = this.gridData [ post ].x, yp = this.gridData [ post ].y;
 
                 const rnk = this.gamePiecesData [i].rank, rnkName = this.gamePiecesData [i].name;
 
-                const piece = new GamePiece ( this, 960, 540, w, h, plyr + counter, clr, plyr == 'self' ? 0 : 1, post, rnk, rnkName, flipped, activated );
+                const piece = new GamePiece ( this, 960, 540, w, h, plyr + counter, plyr, clr, base, post, rnk, rnkName, flipped, activated );
 
                 piece.on('pointerdown', () => {
                     this.playSound ('clicka');
@@ -499,7 +546,7 @@ class SceneA extends Phaser.Scene {
 
     }
 
-    createBlinkers ( piecePost, chipClr = 0, activated = true ) {
+    createBlinkers ( piecePost, resident = 0, activated = true ) {
 
         this.blinkersCont = this.add.container ( 0, 0);
 
@@ -537,7 +584,7 @@ class SceneA extends Phaser.Scene {
 
         }else {
 
-            const adjArr = this.getOpenAdjacent ( piecePost, chipClr );
+            const adjArr = this.getOpenAdjacent ( piecePost, resident );
 
             for ( let i in adjArr ) {
 
@@ -632,7 +679,7 @@ class SceneA extends Phaser.Scene {
 
     pieceIsClicked ( piece ) {
 
-        if ( !this.controlsHidden ) this.showControls (false);
+        //if ( !this.controlsHidden ) this.showControls (false);
 
         if ( this.pieceClicked != piece.id ) {
 
@@ -725,7 +772,7 @@ class SceneA extends Phaser.Scene {
             x: this.gridData [ post ].x,
             y: this.gridData [ post ].y,
             duration : 200,
-            ease : 'Power3'
+            ease : 'Bounce'
         });
         
         toMove.post = post;
@@ -752,7 +799,7 @@ class SceneA extends Phaser.Scene {
 
         this.movePiece ( post );
 
-        this.activatePieces ( this.players [ this.turn ].chip, false );
+        this.activatePieces ( this.turn, false );
 
         if ( !postOccupied ) {
 
@@ -776,7 +823,7 @@ class SceneA extends Phaser.Scene {
 
             if ( clashResult == 1 ) { 
 
-                //winner residingpiece..
+                //winner movingPiece..
                 this.gridData [ post ].resident = plyr == 'self' ? 1 : 2;
 
                 this.gridData [ post ].residentPiece = this.pieceClicked;
@@ -787,21 +834,30 @@ class SceneA extends Phaser.Scene {
 
                     this.playSound ('clashwon');
 
-                    this.createParticlesAnim ( post, residingPiece.chipClr);
+                    this.createParticlesAnim ( post, residingPiece.pieceClr );
 
                 }, [], this);
 
 
             }else if ( clashResult == 2 ) {
 
-                //winner movingpiece..
+                //winner residingPiece..
                 this.time.delayedCall ( clashDelayAction, () => {
 
                     movingPiece.captured();
 
                     this.playSound ('clashwon');
 
-                    this.createParticlesAnim ( post, movingPiece.chipClr );
+                    this.add.tween ({
+                        targets : residingPiece,
+                        scale : 1.1,
+                        duration : 100,
+                        yoyo: true,
+                        easeParams : [ 1.2, 0.8 ],
+                        ease : 'Elastic'
+                    });
+
+                    this.createParticlesAnim ( post, movingPiece.pieceClr );
 
                 }, [], this);
                
@@ -841,15 +897,14 @@ class SceneA extends Phaser.Scene {
 
             const isWinner = this.checkWinner();
 
-            console.log ( 'winner', isWinner );
 
-            if ( !isWinner ) {
+            if ( isWinner != '' ) {
 
-                this.switchTurn ();
+                this.endGame ( isWinner );
 
             }else {
 
-                this.endGame ();
+                this.switchTurn ();
 
             }
 
@@ -864,7 +919,7 @@ class SceneA extends Phaser.Scene {
         //get shot
         let tmpArr = [];
 
-        let chipClr = this.turn == 'self' ? 1 : 2;
+        let resident = this.turn == 'self' ? 1 : 2;
 
         for ( var i = 0; i < 21; i++ ){
 
@@ -872,7 +927,7 @@ class SceneA extends Phaser.Scene {
 
             if ( !piece.isCaptured ) {
 
-                const arr = this.getOpenAdjacent ( piece.post, chipClr  );
+                const arr = this.getOpenAdjacent ( piece.post, resident );
 
                 if ( arr.length > 0 ) tmpArr.push ( { 'piece' : piece.id, 'arr' : arr }); 
             }
@@ -885,7 +940,7 @@ class SceneA extends Phaser.Scene {
 
         const toMove = this.piecesCont.getByName ( tmpArr [randIndx].piece );
 
-        this.createBlinkers ( toMove.post, chipClr, false );
+        this.createBlinkers ( toMove.post, resident, false );
 
         this.playSound ('clicka');
 
@@ -918,7 +973,7 @@ class SceneA extends Phaser.Scene {
         if ( this.players[ this.turn ].isAI ) {
             this.makeAI();
         }else {
-            this.activatePieces ( this.players[ this.turn].chip );
+            this.activatePieces ( this.turn );
         }
 
     }
@@ -956,10 +1011,27 @@ class SceneA extends Phaser.Scene {
         }
     }
 
-    checkWinner () 
+    checkWinner ( ) 
     {
-        
-        return false;
+
+        for ( var i = 0; i < 21; i++ ) {
+
+            const selfPiece = this.piecesCont.getByName ('self' + i );
+
+            if ( selfPiece.isFlagAndCaptured() ) return 'oppo';
+
+            if ( selfPiece.isFlagAndHome() ) return 'self';
+
+            
+            const oppoPiece = this.piecesCont.getByName ('oppo' + i );
+
+            if ( oppoPiece.isFlagAndCaptured() ) return 'oppo';
+
+            if ( oppoPiece.isFlagAndHome() ) return 'self';
+
+        }
+
+        return '';
     }
 
     checkClash ( rankA, rankB ){
@@ -1005,7 +1077,6 @@ class SceneA extends Phaser.Scene {
 
     }
 
-
     startPrep ()
     {
 
@@ -1030,7 +1101,7 @@ class SceneA extends Phaser.Scene {
         
 
         //deactive self pieces..
-        this.activatePieces (  this.players ['self'].chip, false );
+        this.activatePieces (  this.turn, false );
 
         //create oppo pieces..
         this.createGamePieces ( 'oppo', this.players['oppo'].chip, true, false );
@@ -1123,15 +1194,17 @@ class SceneA extends Phaser.Scene {
     
         this.setTurnIndicator ( this.turn );
 
-        this.activatePieces ( this.players [ this.turn ].chip );
+        this.activatePieces ( this.turn );
 
     }
 
-    activatePieces ( chipClr, enabled = true ) {
+    activatePieces ( plyr, enabled = true ) {
 
-        this.piecesCont.iterate ( function (child) {
+        for ( var i = 0; i < 21; i++) {
 
-            if ( child.chipClr == chipClr && !child.isCaptured ) {
+            const child = this.piecesCont.getByName ( plyr + i );
+
+            if ( !child.isCaptured ) {
 
                 if ( enabled ) {
                     child.setInteractive ();
@@ -1140,26 +1213,19 @@ class SceneA extends Phaser.Scene {
                 }
             }
 
-        });
+        }
+
+        
     }
 
-    //..
-
-    showControls ( shown = true )
+    showCapturedPieces () 
     {
 
-        this.controlsHidden = !shown;
-
-        this.add.tween ({
-            targets : this.controlBtnsCont,
-            x : ( shown ) ? 1624 : 1920,
-            duration : 200,
-            ease : 'Power3',
-        });
-
 
     }
+    //..
 
+   
     createPlayersIndicator () 
     {
 
@@ -1395,22 +1461,19 @@ class SceneA extends Phaser.Scene {
 
     }
 
-    
+    endGame ( winner ) {
 
-    endGame () {
-
-        
         this.gameOver = true;
 
-        this.players [ this.turn ].wins += 1;
+        this.players [ winner ].wins += 1;
 
-        this.playerIndicatorsCont.getByName ( this.turn ).last.text = 'Wins : ' +  this.players [ this.turn ].wins;
+        this.playerIndicatorsCont.getByName ( winner ).last.text = 'Wins : ' +  this.players [ winner ].wins;
 
-        this.time.delayedCall ( 500, () => {
+        this.time.delayedCall ( 300, () => {
             
             this.playSound ('xyloriff', 0.3);
 
-            this.showEndPrompt ();
+            this.showEndPrompt ( winner );
 
         }, [], this );
 
@@ -1521,9 +1584,9 @@ class SceneA extends Phaser.Scene {
 
     }
 
-    showEndPrompt () {
+    showEndPrompt ( winner ) {
 
-        const txt = this.turn == 'self' ? 'Congrats, You Win' : 'Sorry, You Lose';
+        const txt = winner == 'self' ? 'Congrats, You Win' : 'Sorry, You Lose';
 
         const btnArr = [
             { 
@@ -1596,7 +1659,5 @@ class SceneA extends Phaser.Scene {
 
         this.scene.start ('Intro');
     }
-
-
     
 }

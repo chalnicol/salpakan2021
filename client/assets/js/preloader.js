@@ -44,6 +44,8 @@ class Preloader extends Phaser.Scene {
 
         this.load.image('commence', 'client/assets/images/commence.png');
 
+        this.load.image('capturedbg', 'client/assets/images/capturedbg.png');
+
         this.load.spritesheet('burger', 'client/assets/images/burger.png', { frameWidth: 90, frameHeight: 90 });
 
         this.load.spritesheet('piecesElements', 'client/assets/images/piecesElements.png', { frameWidth: 75, frameHeight: 75 });
@@ -62,9 +64,9 @@ class Preloader extends Phaser.Scene {
 
         this.load.spritesheet('promptbtns', 'client/assets/images/promptbtns.png', { frameWidth: 200, frameHeight: 90 });
 
-        this.load.spritesheet('contbtns', 'client/assets/images/contbtns.png', { frameWidth: 100, frameHeight: 100 });
-
         this.load.spritesheet('conts_sm', 'client/assets/images/controls_sm.png', { frameWidth: 100, frameHeight: 100 });
+
+        this.load.spritesheet('conts_xl', 'client/assets/images/controls_xl.png', { frameWidth: 160, frameHeight: 160 });
 
         this.load.spritesheet('blinkers', 'client/assets/images/blinkers.png', { frameWidth: 75, frameHeight: 75 });
         
