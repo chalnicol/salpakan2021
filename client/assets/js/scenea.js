@@ -376,7 +376,7 @@ class SceneA extends Phaser.Scene {
 
                         this.showControls (false);
 
-                        this.startCommence ();
+                        this.startCommencement ();
 
                         
                         break;
@@ -499,11 +499,11 @@ class SceneA extends Phaser.Scene {
 
     }
 
-    createBlinkers ( piecePost, phase  ) {
+    createBlinkers ( piecePost, chipClr = 0, activated = true ) {
 
         this.blinkersCont = this.add.container ( 0, 0);
 
-        if ( phase == 0 ) {
+        if ( this.gamePhase == 0 ) {
 
             for ( let i = 0; i < 27; i++ ) {
 
@@ -537,13 +537,13 @@ class SceneA extends Phaser.Scene {
 
         }else {
 
-            const adjArr = this.getOpenAdjacent ( piecePost, 1 );
+            const adjArr = this.getOpenAdjacent ( piecePost, chipClr );
 
             for ( let i in adjArr ) {
 
                 let xp = this.gridData [ adjArr[i].post ].x, yp = this.gridData [ adjArr[i].post ].y;
 
-                const blinkb = new MyBlinkers ( this, xp, yp, 190, 114, 'blink'+i, adjArr[i].post, adjArr[i].dir, true );
+                const blinkb = new MyBlinkers ( this, xp, yp, 190, 114, 'blink'+i, adjArr[i].post, adjArr[i].dir, activated );
 
                 blinkb.on ('pointerdown', () => {
                     this.playSound ('clicka');
@@ -651,7 +651,7 @@ class SceneA extends Phaser.Scene {
 
             this.pieceClicked = piece.id;
 
-            this.createBlinkers ( piece.post, this.gamePhase );
+            this.createBlinkers ( piece.post, 1 );
 
             
         
@@ -673,7 +673,6 @@ class SceneA extends Phaser.Scene {
         const r = Math.floor ( pos/9 ), c = pos % 9;
 
         let arr = [];
-
 
         if ( c-1 >=0 ) {
 
@@ -717,6 +716,9 @@ class SceneA extends Phaser.Scene {
         
         const origin = toMove.post;
 
+        //bring to top..
+        this.piecesCont.bringToTop (toMove);
+
         //..    
         this.add.tween ({
             targets : toMove,
@@ -744,11 +746,13 @@ class SceneA extends Phaser.Scene {
     makeTurn ( plyr, post ) {
 
         //if ( this.gameInited && !this.gameOver  ) {
+        const clashDelayAction =  200;
 
         const postOccupied = this.gridData [ post ].resident != 0;
 
         this.movePiece ( post );
 
+        this.activatePieces ( this.players [ this.turn ].chip, false );
 
         if ( !postOccupied ) {
 
@@ -769,43 +773,193 @@ class SceneA extends Phaser.Scene {
             const clashResult = this.checkClash ( movingPiece.rank, residingPiece.rank );
 
             console.log ( 'res', clashResult );
-          
 
-            if ( clashResult == 0 ) { 
+            if ( clashResult == 1 ) { 
 
                 //winner residingpiece..
-                
-                movingPiece.captured();
-               
-
-            }else if ( clashResult == 1) {
-
-                //winner movingpiece..
-
-                residingPiece.captured();
-
                 this.gridData [ post ].resident = plyr == 'self' ? 1 : 2;
 
                 this.gridData [ post ].residentPiece = this.pieceClicked;
 
+                this.time.delayedCall ( clashDelayAction, () => {
+
+                    residingPiece.captured();
+
+                    this.playSound ('clashwon');
+
+                    this.createParticlesAnim ( post, residingPiece.chipClr);
+
+                }, [], this);
+
+
+            }else if ( clashResult == 2 ) {
+
+                //winner movingpiece..
+                this.time.delayedCall ( clashDelayAction, () => {
+
+                    movingPiece.captured();
+
+                    this.playSound ('clashwon');
+
+                    this.createParticlesAnim ( post, movingPiece.chipClr );
+
+                }, [], this);
+               
 
             }else {
-
-                residingPiece.captured();
-                
-                movingPiece.captured();
 
                 this.gridData [ post ].resident = 0;
 
                 this.gridData [ post ].residentPiece = '';
 
+                this.time.delayedCall ( clashDelayAction, () => {
+
+                    residingPiece.captured();
+                
+                    movingPiece.captured();
+
+                    this.playSound ('clashdraw');
+
+                    this.createParticlesAnim ( post, 0 );
+
+                    this.createParticlesAnim ( post, 1 );
+
+                }, [], this);
+
             }
 
             this.pieceClicked = '';
 
+            //check winner.. 
+
+            
 
         }
 
+        //checkWinner...
+        this.time.delayedCall ( 500, () => {
+
+            const isWinner = this.checkWinner();
+
+            console.log ( 'winner', isWinner );
+
+            if ( !isWinner ) {
+
+                this.switchTurn ();
+
+            }else {
+
+                this.endGame ();
+
+            }
+
+        }, [], this);
+
+
+    }
+
+    makeAI () {
+
+        
+        //get shot
+        let tmpArr = [];
+
+        let chipClr = this.turn == 'self' ? 1 : 2;
+
+        for ( var i = 0; i < 21; i++ ){
+
+            const piece = this.piecesCont.getByName ( this.turn + i );
+
+            if ( !piece.isCaptured ) {
+
+                const arr = this.getOpenAdjacent ( piece.post, chipClr  );
+
+                if ( arr.length > 0 ) tmpArr.push ( { 'piece' : piece.id, 'arr' : arr }); 
+            }
+            
+        }
+
+        const randIndx = Math.floor ( Math.random() * tmpArr.length );
+
+        this.pieceClicked = tmpArr [randIndx].piece;
+
+        const toMove = this.piecesCont.getByName ( tmpArr [randIndx].piece );
+
+        this.createBlinkers ( toMove.post, chipClr, false );
+
+        this.playSound ('clicka');
+
+        const destArr = tmpArr [randIndx].arr;
+
+        const dest = destArr [ Math.floor ( Math.random() * destArr.length ) ].post;
+
+
+        this.time.delayedCall ( 500, function () {
+
+            this.playSound ('clicka');
+
+            this.removeBlinkers ();
+            
+            this.makeTurn ( this.turn, dest );
+
+        }, [], this);
+    
+        
+    }
+
+    switchTurn () {
+
+        console.log ('switch..');
+
+        this.turn = ( this.turn == 'self' ) ? 'oppo' : 'self';
+        
+        this.setTurnIndicator ( this.turn );
+
+        if ( this.players[ this.turn ].isAI ) {
+            this.makeAI();
+        }else {
+            this.activatePieces ( this.players[ this.turn].chip );
+        }
+
+    }
+
+    createParticlesAnim ( post, clr ) {
+
+        const max = 36;
+
+        const xp = this.gridData [ post ].x,
+
+              yp = this.gridData [ post ].y;
+
+        for ( let i = 0; i < max; i++ ) {
+
+            const desx = xp + Math.sin ( Phaser.Math.DegToRad ( i* 360/max ) ) * Phaser.Math.Between (100, 200),
+
+                  desy = yp - Math.cos ( Phaser.Math.DegToRad ( i* 360/max ) ) * Phaser.Math.Between (100, 200);
+
+
+            const crc = this.add.rectangle ( xp, yp, Phaser.Math.Between (15, 25), Phaser.Math.Between (15, 25), clr == 0 ? 0xffffff : 0x0a0a0a , 1 );
+
+            this.add.tween ({
+                targets : crc,
+                x : desx,
+                y : desy,
+                alpha : 0,
+                duration : 1000,
+                ease : 'Power3',
+                onComplete : () => {
+                    crc.destroy();
+                }
+            });
+
+
+        }
+    }
+
+    checkWinner () 
+    {
+        
+        return false;
     }
 
     checkClash ( rankA, rankB ){
@@ -871,7 +1025,7 @@ class SceneA extends Phaser.Scene {
       
     }
 
-    startCommence () 
+    startCommencement () 
     {
         
 
@@ -908,7 +1062,7 @@ class SceneA extends Phaser.Scene {
 
         const img2 = this.add.image ( 950, 510, 'commence').setScale (0.5);
 
-        const commence = this.add.text ( 960, 580, '3', {color:'#333', fontFamily:'Oswald', fontSize: 120 }).setStroke('#d5d5d5', 3 ).setOrigin(0.5);
+        const commence = this.add.text ( 960, 580, '3', {color:'#333', fontFamily:'Oswald', fontSize: 120 }).setStroke('#dedede', 5 ).setOrigin(0.5);
 
         this.commenceCont.add ([ img0, img1, img2, commence ]);
 
@@ -1241,30 +1395,7 @@ class SceneA extends Phaser.Scene {
 
     }
 
-    makeAI () {
-
-        let shot = this.getRandomShot ();
-
-        this.time.delayedCall ( 500, function () {
-            
-            this.makeTurn (  shot, this.turn );
-
-        }, [], this);
     
-        
-    }
-
-    
-
-    switchTurn () {
-
-        this.turn = ( this.turn == 'self' ) ? 'oppo' : 'self';
-        
-        this.setTurnIndicator ( this.turn );
-
-        if ( this.players[ this.turn ].isAI ) this.makeAI();
-        
-    }
 
     endGame () {
 
