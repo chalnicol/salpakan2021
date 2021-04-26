@@ -66,6 +66,17 @@ class GamePiece extends Phaser.GameObjects.Container {
     }
 
 
+    flip ()
+    {
+        this.flippedUp = !this.flippedUp;
+
+        this.getAt(1).setVisible ( !this.flippedUp );
+        this.getAt(2).setVisible ( this.flippedUp );
+        this.getAt(3).setVisible ( this.flippedUp );
+
+        return this;
+    }
+
     isHome () {
 
         const r = Math.floor ( this.post/9 );

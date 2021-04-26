@@ -88,39 +88,14 @@ class SceneA extends Phaser.Scene {
 
             this.add.rectangle ( xp, yp, sw, sh, clr, 0.9 ).setStrokeStyle ( 5, 0xfefefe );
 
-            this.add.text ( xp + 60, yp - 30, i, { color:'#fff', fontFamily:'Oswald', fontSize: 20 }).setOrigin(0.5);
+            //this.add.text ( xp + 60, yp - 30, i, { color:'#fff', fontFamily:'Oswald', fontSize: 20 }).setOrigin(0.5);
 
             this.gridData.push ( { 'x': xp, 'y': yp, 'resident' : 0, 'residentPiece' : '' });
         
         }
 
      
-        //add burger for controls
-        let brgr = this.add.image (1844, 66, 'burger').setInteractive();
-
-        brgr.on('pointerover', () => {
-            brgr.setFrame(1);
-        });
-        brgr.on('pointerout', () => {
-            brgr.setFrame(0);
-        });
-        brgr.on('pointerdown', () => {
-
-            this.playSound ('clicka');
-            
-            brgr.setFrame(2);
-        });
-        brgr.on('pointerup', () => {
-            
-            brgr.setFrame(0);
-
-            this.controlsHidden = !this.controlsHidden;
-
-            this.showControls ( !this.controlsHidden );
-
-        });
-
-        this.burger = brgr;
+        
 
         //add pieces container..
         this.piecesCont = this.add.container (0, 0);
@@ -137,14 +112,14 @@ class SceneA extends Phaser.Scene {
 
         this.createCapturedContainer ();
 
+        this.createEmojis ();
+
         this.createControls ();
 
         this.startPrep ();
 
 
     }
-
-
 
     playMusic ( off = false ){
 
@@ -260,25 +235,101 @@ class SceneA extends Phaser.Scene {
     
     }
     
+    //..
 
+    createCapturedContainer ()
+    {
+        this.capturedScreenShown = false;
+
+        this.capturedCounter = { 'self' : 0, 'oppo' : 0 };
+
+        this.capturedCont = this.add.container ( 0, 1080 ).setDepth (999);
+
+        const rct = this.add.rectangle ( 960, 540, 1920, 1080 ).setInteractive ();
+
+        rct.on ('pointerup', ()=> {
+            
+            this.playSound ('clickc');
+
+            this.showCaptured (false);
+
+        });
+
+        
+        const bg = this.add.image ( 960, 540, 'capturedbg' );
+
+
+        const rctb = this.add.rectangle ( 960, 602, 1500, 776 ).setInteractive ();
+
+        const rctc = this.add.rectangle ( 1659, 256, 83, 83 ).setInteractive ();
+
+        rctc.on ('pointerup', ()=> {
+            
+            this.playSound ('clicka');
+
+            this.showCaptured (false);
+
+        });
+
+
+        this.capturedCont.add ( [rct, rctb,  bg,  rctc ]  );
+
+
+    }
 
     createControls () 
     {
         
         //..
+        //add burger for controls
+        let brgr = this.add.image (1844, 66, 'burger').setInteractive().setDepth (9999);
+
+        brgr.on('pointerover', () => {
+            brgr.setFrame(1);
+        });
+        brgr.on('pointerout', () => {
+            brgr.setFrame(0);
+        });
+        brgr.on('pointerdown', () => {
+
+            this.playSound ('clicka');
+            
+            brgr.setFrame(2);
+        });
+        brgr.on('pointerup', () => {
+            
+            brgr.setFrame(0);
+
+            if ( this.capturedScreenShown ) this.showCaptured ( false );
+
+            if ( this.isEmoji ) this.showEmojis (false);
+
+            this.controlsHidden = !this.controlsHidden;
+
+            this.showControls ( !this.controlsHidden );
+
+        });
+
+
 
         const cntW = 800, cntH = 380;
 
         this.controlBtnsCont = this.add.container ( 1920, 0).setDepth (9999);
 
-        const rct = this.add.rectangle ( 0, 150, cntW, cntH, 0x3a3a3a, 0.8 ).setOrigin (0).setInteractive();
+        const rct = this.add.image ( 395, 335, 'controlsBg' ).setInteractive ();
 
-        this.controlBtnsCont.add ( rct );
+        const rcta = this.add.rectangle ( 26, 335, 52, 380 ).setInteractive ();
+
+        rcta.on('pointerup', () => {
+            this.showControls (false);
+        });
+
+        this.controlBtnsCont.add ( [rct, rcta] );
 
         
         //..
 
-        const btnsTop = 230, btnsLeft = 150;
+        const btnsTop = 230, btnsLeft = 180;
 
         const btnArr = [
 
@@ -286,15 +337,25 @@ class SceneA extends Phaser.Scene {
                 name : 'leave', 
                 desc : 'Leave Game',
                 func : () => {
-                    this.showControls ( false );
-                    this.showExitPrompt ();
+
+                    if ( this.gameOver ) {
+
+                        this.leaveGame ();
+
+                    }else {
+
+                        this.showControls ( false );
+                        this.showExitPrompt ();
+
+                    }
+                   
                 }
             },
             { 
                 name : 'emoji', 
                 desc : 'Send Emoji',
                 func : () => {
-                    this.showEmoji ();
+                    this.showEmojis ();
                     this.showControls ( false );
                 }
             },
@@ -430,7 +491,7 @@ class SceneA extends Phaser.Scene {
             
         }
 
-        const btnsTop = 230, btnsLeft = 150;
+        const btnsTop = 230, btnsLeft = 180;
 
         const mainBtnArr = [
             { 
@@ -515,9 +576,6 @@ class SceneA extends Phaser.Scene {
 
 
     }
-
-    
-    //..
 
     createGamePieces ( plyr, clr, flipped, activated ) {
 
@@ -836,6 +894,47 @@ class SceneA extends Phaser.Scene {
 
     }
 
+    getNearbyResidents ( pos, res ) 
+    {
+        const r = Math.floor ( pos/9 ), c = pos % 9;
+
+        let counter = 0;
+
+        if ( c-1 >=0 ) {
+
+            const left = (r * 9) + (c - 1);
+
+            if ( this.gridData [ left ].resident == res ) counter += 1;
+
+        }
+
+        if ( c+1 < 9 ) {
+
+            const right = (r * 9) + (c + 1);
+
+            if ( this.gridData [ right ].resident == res ) counter += 1;
+        }
+
+        if ( r-1 >= 0 ) {
+
+            const top = ( (r-1) * 9) + c;
+
+            if ( this.gridData [ top ].resident == res ) counter += 1
+
+        }
+
+        if ( r+1 < 8  ) {
+
+            const bottom = ( (r+1) * 9) + c;
+
+            if ( this.gridData [ bottom ].resident == res ) counter += 1;
+            
+        }
+        
+        return counter;
+
+    }
+
     movePiece ( post ) 
     {
 
@@ -1003,34 +1102,7 @@ class SceneA extends Phaser.Scene {
 
 
     }
-
-    createCapturedContainer ()
-    {
-
-        this.capturedCounter = { 'self' : 0, 'oppo' : 0 };
-
-        this.capturedCont = this.add.container ( 0, 1080 );
-
-        const rct = this.add.rectangle ( 960, 540, 1920, 1080 ).setInteractive ();
-
-        rct.on ('pointerup', ()=> {
-            
-            this.playSound ('clickc');
-
-            this.showCaptured (false);
-
-        });
-
-        const rctb = this.add.rectangle ( 960, 604, 1500, 774 ).setInteractive ();
-
-
-        const bg = this.add.image ( 960, 540, 'capturedbg' );
-
-        this.capturedCont.add ( [rct, rctb, bg] );
-
-
-    }
-
+   
     sendToCaptured ( piece )
     {
 
@@ -1060,6 +1132,8 @@ class SceneA extends Phaser.Scene {
 
     showCaptured ( show = true ) {
 
+        this.capturedScreenShown = show;
+
         this.add.tween ({
             targets : this.capturedCont,
             y : (show) ? 0 : 1080,
@@ -1067,9 +1141,7 @@ class SceneA extends Phaser.Scene {
             ease : 'Power3'
         });
 
-
     }
-
 
     makeAI () {
 
@@ -1129,7 +1201,7 @@ class SceneA extends Phaser.Scene {
         
         this.setTurnIndicator ( this.turn );
 
-        if ( this.players[ this.turn ].isAI ) {
+        if ( this.players [ this.turn ].isAI ) {
             this.makeAI();
         }else {
             this.activatePieces ( this.turn );
@@ -1179,8 +1251,11 @@ class SceneA extends Phaser.Scene {
 
             for ( var i in flags ) {
 
-               
-                if ( flags [i].isHome() ) return flags [i].player;
+                const res = flags [i].player == 'self' ? 2 : 1;
+
+                const nearByOpps = this.getNearbyResidents ( flags[i].post, res );
+
+                if ( flags [i].isHome() && nearByOpps == 0 ) return flags [i].player;
             }
 
         }else {
@@ -1287,7 +1362,7 @@ class SceneA extends Phaser.Scene {
 
         this.commenceCont= this.add.container (960, 580);
 
-        const rct = this.add.rectangle ( 0, 0, 300, 250, 0x333333, 0.3 );
+        //const rct = this.add.rectangle ( 0, 0, 300, 250 );
 
         const img0 = this.add.image ( -20, 40, 'commence');
 
@@ -1297,7 +1372,7 @@ class SceneA extends Phaser.Scene {
 
         const commence = this.add.text ( 0, 0, '3', {color:'#333', fontFamily:'Oswald', fontSize: 120 }).setStroke('#ddd', 5 ).setOrigin(0.5);
 
-        this.commenceCont.add ([ rct, img0, img1, img2, commence ]);
+        this.commenceCont.add ([ img0, img1, img2, commence ]);
 
         //start commence timer..
 
@@ -1347,8 +1422,6 @@ class SceneA extends Phaser.Scene {
     }
 
     startGame () {
-
-        console.log ( this.turn, this.players[ this.turn].chip );
 
         this.gamePhase = 1;
 
@@ -1416,13 +1489,9 @@ class SceneA extends Phaser.Scene {
 
     }
 
-    showEmoji () 
-    {
-        this.isEmoji = true;
+    createEmojis () {
 
-        //1650 480..
-
-        this.emojiContainer = this.add.container ( 0, 1080 );
+        this.emojiContainer = this.add.container ( 0, -1080 );
 
         let rct = this.add.rectangle ( 0, 0, 1920, 1080 ).setOrigin(0).setInteractive ();
 
@@ -1430,7 +1499,7 @@ class SceneA extends Phaser.Scene {
             
             this.playSound ('clicka');
 
-            this.removeEmoji();
+            this.showEmojis (false);
         });
 
         let bgimg = this.add.image ( 1650, 480, 'emojibg').setInteractive();
@@ -1467,6 +1536,8 @@ class SceneA extends Phaser.Scene {
                 
                 this.first.setVisible ( false );
 
+                this.scene.showEmojis ( false );
+
                 this.scene.sendEmoji ( i );                
             
             });
@@ -1475,19 +1546,23 @@ class SceneA extends Phaser.Scene {
 
         }
 
+    }
+
+    showEmojis ( show = true ) 
+    {
+        this.isEmoji = show;
+
         this.add.tween ({
             targets : this.emojiContainer,
-            y : 0,
+            y : show ? 0 : -1080,
             duration : 300,
             easeParams : [ 1.2, 0.8 ],
-            ease : 'Elastic'
+            ease : 'Elastic' 
         });
 
     }
 
     sendEmoji ( emoji ) {
-
-        this.removeEmoji();
 
         if ( this.gameData.game == 0) {
 
@@ -1521,13 +1596,6 @@ class SceneA extends Phaser.Scene {
             this.controlBtnsCont.getByName('emoji').setInteractive();
         }, [], this );
 
-    }
-
-    removeEmoji () {
-        
-        this.isEmoji = false;
-
-        this.emojiContainer.destroy();
     }
 
     showSentEmojis ( plyr, emoji ) {
