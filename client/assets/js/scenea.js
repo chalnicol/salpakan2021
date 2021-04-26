@@ -122,11 +122,8 @@ class SceneA extends Phaser.Scene {
 
         this.burger = brgr;
 
-
-
         //add pieces container..
         this.piecesCont = this.add.container (0, 0);
-
 
         //..
 
@@ -263,19 +260,7 @@ class SceneA extends Phaser.Scene {
     
     }
     
-    createCapturedContainer ()
-    {
 
-        console.log ('this..');
-
-        this.capturedCont = this.add.container ( 0, 1080);
-
-        const bg = this.add.image ( 960, 540, 'capturedbg' );
-
-        this.capturedCont.add ( bg );
-
-
-    }
 
     createControls () 
     {
@@ -367,15 +352,6 @@ class SceneA extends Phaser.Scene {
         const mainBtnArr = [
 
             { 
-                desc : 'Random Position',
-                func : () => {
-
-                    const postArr = this.generateRandomArr();
-                        
-                    this.repositionPieces ('self', postArr);
-                }
-            },
-            { 
                 desc : 'Preset Position',
                 func : () => {
 
@@ -387,6 +363,17 @@ class SceneA extends Phaser.Scene {
 
                 }
             },
+
+            { 
+                desc : 'Random Position',
+                func : () => {
+
+                    const postArr = this.generateRandomArr();
+                        
+                    this.repositionPieces ('self', postArr);
+                }
+            },
+           
             { 
                 
                 desc : 'Make Ready',
@@ -443,7 +430,7 @@ class SceneA extends Phaser.Scene {
             
         }
 
-        const btnsTop = 220, btnsLeft = 150;
+        const btnsTop = 230, btnsLeft = 150;
 
         const mainBtnArr = [
             { 
@@ -477,6 +464,8 @@ class SceneA extends Phaser.Scene {
                     //..
 
                     this.showControls (false);
+                    
+                    this.showCaptured ();
 
                 }
             }
@@ -484,7 +473,7 @@ class SceneA extends Phaser.Scene {
 
         for ( let i=0; i<mainBtnArr.length; i++ ) {
   
-            let xp = btnsLeft + (i * 160 ), yp = btnsTop + 180;
+            let xp = btnsLeft + (i * 150 ), yp = btnsTop + 180;
 
             let mainBtn = new MyButton ( this, xp, yp, 100, 100, 'mainBtn' + i, 'conts_sm', 'imgBtns',  i + 9 ).setName ('mainBtn' + i );
 
@@ -520,7 +509,7 @@ class SceneA extends Phaser.Scene {
         this.add.tween ({
             targets : this.controlBtnsCont,
             x : ( shown ) ? 1120 : 1920,
-            duration : 500,
+            duration : 300,
             ease : 'Power3',
         });
 
@@ -863,7 +852,7 @@ class SceneA extends Phaser.Scene {
             x: this.gridData [ post ].x,
             y: this.gridData [ post ].y,
             duration : 200,
-            ease : 'Bounce'
+            ease : 'Power3'
         });
         
         toMove.post = post;
@@ -884,7 +873,7 @@ class SceneA extends Phaser.Scene {
     makeTurn ( plyr, post ) {
 
         //if ( this.gameInited && !this.gameOver  ) {
-        const clashDelayAction =  200;
+        const clashDelayAction =  250;
 
         const postOccupied = this.gridData [ post ].resident != 0;
 
@@ -910,7 +899,7 @@ class SceneA extends Phaser.Scene {
 
             const clashResult = this.checkClash ( movingPiece.rank, residingPiece.rank );
 
-            console.log ( 'res', clashResult );
+            //console.log ( 'res', clashResult );
 
             if ( clashResult == 1 ) { 
 
@@ -922,8 +911,10 @@ class SceneA extends Phaser.Scene {
                 this.time.delayedCall ( clashDelayAction, () => {
 
                     residingPiece.captured();
+                    
+                    this.sendToCaptured ( residingPiece );
 
-                    this.playSound ('clashwon');
+                    this.playSound ( residingPiece.player == 'self' ? 'clashlost' : 'clashwon');
 
                     this.createParticlesAnim ( post, residingPiece.pieceClr );
 
@@ -937,8 +928,10 @@ class SceneA extends Phaser.Scene {
 
                     movingPiece.captured();
 
-                    this.playSound ('clashwon');
+                    this.sendToCaptured ( movingPiece );
 
+                    this.playSound ( movingPiece.player == 'self' ? 'clashlost' : 'clashwon');
+                    
                     this.add.tween ({
                         targets : residingPiece,
                         scale : 1.1,
@@ -965,6 +958,12 @@ class SceneA extends Phaser.Scene {
                 
                     movingPiece.captured();
 
+                    //..
+                    this.sendToCaptured ( residingPiece );
+
+                    this.sendToCaptured ( movingPiece );
+                    
+
                     this.playSound ('clashdraw');
 
                     this.createParticlesAnim ( post, 0 );
@@ -984,10 +983,11 @@ class SceneA extends Phaser.Scene {
         }
 
         //checkWinner...
-        this.time.delayedCall ( 500, () => {
+        this.time.delayedCall ( 600, () => {
 
             const isWinner = this.checkWinner();
 
+            console.log ('win', isWinner );
 
             if ( isWinner != '' ) {
 
@@ -1004,6 +1004,73 @@ class SceneA extends Phaser.Scene {
 
     }
 
+    createCapturedContainer ()
+    {
+
+        this.capturedCounter = { 'self' : 0, 'oppo' : 0 };
+
+        this.capturedCont = this.add.container ( 0, 1080 );
+
+        const rct = this.add.rectangle ( 960, 540, 1920, 1080 ).setInteractive ();
+
+        rct.on ('pointerup', ()=> {
+            
+            this.playSound ('clickc');
+
+            this.showCaptured (false);
+
+        });
+
+        const rctb = this.add.rectangle ( 960, 604, 1500, 774 ).setInteractive ();
+
+
+        const bg = this.add.image ( 960, 540, 'capturedbg' );
+
+        this.capturedCont.add ( [rct, rctb, bg] );
+
+
+    }
+
+    sendToCaptured ( piece )
+    {
+
+        this.piecesCont.remove ( piece );
+
+
+        const startX = ( piece.player == 'self' ) ? 363.75 : 1068.75,
+
+              startY = 450;
+        
+        const ix = Math.floor ( this.capturedCounter [ piece.player ]/4 ),
+
+              iy = this.capturedCounter[piece.player] % 4;
+
+
+        piece.setPosition ( startX + (iy * 162.5), startY + (ix * 98.2) ).setScale (0.9)
+        
+        this.capturedCont.add (piece);
+
+        this.capturedCounter[piece.player] += 1;
+
+       
+
+
+
+    }
+
+    showCaptured ( show = true ) {
+
+        this.add.tween ({
+            targets : this.capturedCont,
+            y : (show) ? 0 : 1080,
+            duration : 300,
+            ease : 'Power3'
+        });
+
+
+    }
+
+
     makeAI () {
 
         
@@ -1012,18 +1079,23 @@ class SceneA extends Phaser.Scene {
 
         let resident = this.turn == 'self' ? 1 : 2;
 
-        for ( var i = 0; i < 21; i++ ){
+        this.piecesCont.iterate ( child => {
 
-            const piece = this.piecesCont.getByName ( this.turn + i );
+            if ( child.player == this.turn ) {
 
-            if ( !piece.isCaptured ) {
+                const arr = this.getOpenAdjacent ( child.post, resident );
 
-                const arr = this.getOpenAdjacent ( piece.post, resident );
+                for (var j = 0; j < arr.length; j++ ) {
 
-                if ( arr.length > 0 ) tmpArr.push ( { 'piece' : piece.id, 'arr' : arr }); 
+                    if ( arr [j].dir == 3 ) tmpArr.push ( { 'piece' : child.id, 'post' : arr [j].post });
+                }
+
             }
-            
-        }
+
+        });
+
+
+       
 
         const randIndx = Math.floor ( Math.random() * tmpArr.length );
 
@@ -1035,10 +1107,6 @@ class SceneA extends Phaser.Scene {
 
         this.playSound ('clicka');
 
-        const destArr = tmpArr [randIndx].arr;
-
-        const dest = destArr [ Math.floor ( Math.random() * destArr.length ) ].post;
-
 
         this.time.delayedCall ( 500, function () {
 
@@ -1046,7 +1114,7 @@ class SceneA extends Phaser.Scene {
 
             this.removeBlinkers ();
             
-            this.makeTurn ( this.turn, dest );
+            this.makeTurn ( this.turn, tmpArr [ randIndx ].post );
 
         }, [], this);
     
@@ -1055,7 +1123,7 @@ class SceneA extends Phaser.Scene {
 
     switchTurn () {
 
-        console.log ('switch..');
+        //console.log ('switch..');
 
         this.turn = ( this.turn == 'self' ) ? 'oppo' : 'self';
         
@@ -1105,24 +1173,24 @@ class SceneA extends Phaser.Scene {
     checkWinner ( ) 
     {
 
-        for ( var i = 0; i < 21; i++ ) {
+        const flags = this.piecesCont.getAll ('rank', 14 );
 
-            const selfPiece = this.piecesCont.getByName ('self' + i );
+        if ( flags.length > 1 ) {
 
-            if ( selfPiece.isFlagAndCaptured() ) return 'oppo';
+            for ( var i in flags ) {
 
-            if ( selfPiece.isFlagAndHome() ) return 'self';
+               
+                if ( flags [i].isHome() ) return flags [i].player;
+            }
 
-            
-            const oppoPiece = this.piecesCont.getByName ('oppo' + i );
+        }else {
 
-            if ( oppoPiece.isFlagAndCaptured() ) return 'oppo';
-
-            if ( oppoPiece.isFlagAndHome() ) return 'self';
+            return flags[0].player;
 
         }
 
         return '';
+
     }
 
     checkClash ( rankA, rankB ){
@@ -1217,18 +1285,19 @@ class SceneA extends Phaser.Scene {
 
         //this.commenceElements = [];
 
-        this.commenceCont= this.add.container (960, 550);
+        this.commenceCont= this.add.container (960, 580);
 
+        const rct = this.add.rectangle ( 0, 0, 300, 250, 0x333333, 0.3 );
 
-        const img0 = this.add.image ( -20, 60, 'commence');
+        const img0 = this.add.image ( -20, 40, 'commence');
 
-        const img1 = this.add.image ( 60, 0, 'commence').setScale(0.7);
+        const img1 = this.add.image ( 60, -40, 'commence').setScale(0.7);
 
-        const img2 = this.add.image ( -10, -30, 'commence').setScale (0.5);
+        const img2 = this.add.image ( -20, -60, 'commence').setScale (0.5);
 
-        const commence = this.add.text ( 0, 40, '3', {color:'#333', fontFamily:'Oswald', fontSize: 120 }).setStroke('#dedede', 5 ).setOrigin(0.5);
+        const commence = this.add.text ( 0, 0, '3', {color:'#333', fontFamily:'Oswald', fontSize: 120 }).setStroke('#ddd', 5 ).setOrigin(0.5);
 
-        this.commenceCont.add ([ img0, img1, img2, commence ]);
+        this.commenceCont.add ([ rct, img0, img1, img2, commence ]);
 
         //start commence timer..
 
@@ -1293,29 +1362,20 @@ class SceneA extends Phaser.Scene {
 
     activatePieces ( plyr, enabled = true ) {
 
-        for ( var i = 0; i < 21; i++) {
-
-            const child = this.piecesCont.getByName ( plyr + i );
-
-            if ( !child.isCaptured ) {
-
+        this.piecesCont.iterate ( child => {
+            if ( child.player == plyr ) {
                 if ( enabled ) {
                     child.setInteractive ();
                 }else {
                     child.removeInteractive ();
                 }
             }
-
-        }
+        });
 
         
     }
 
-    showCapturedPieces () 
-    {
-
-
-    }
+    
     //..
 
    

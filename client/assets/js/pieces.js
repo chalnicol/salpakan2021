@@ -22,7 +22,7 @@ class GamePiece extends Phaser.GameObjects.Container {
 
         this.flippedUp = flippedUp;
 
-        this.isCaptured = false;
+        //this.isCaptured = false;
 
         this.isEnabled = false;
 
@@ -65,18 +65,12 @@ class GamePiece extends Phaser.GameObjects.Container {
 
     }
 
-    isFlagAndCaptured () {
 
-        if ( this.rank == 14 && this.isCaptured ) return true;
-
-        return false;
-    }
-
-    isFlagAndHome () {
+    isHome () {
 
         const r = Math.floor ( this.post/9 );
 
-        if ( ( this.rank == 14 && this.base == 0 && r == 0 ) || ( this.rank == 14 && this.base == 1 && r == 7 ) ) return true;
+        if ( ( this.base == 0 && r == 0 ) || ( this.base == 1 && r == 7 ) ) return true;
 
         return false;
         
@@ -92,15 +86,21 @@ class GamePiece extends Phaser.GameObjects.Container {
             this.first.setFrame ( (this.pieceClr * 2) );
         }
 
+        return this;
+
     }
     
     captured () {
 
         this.post = -1;
         
-        this.isCaptured = true;
+        //this.isCaptured = true;
 
-        this.removeInteractive ().setPosition ( 0, 0 ).setVisible (false);
+        if ( this.player == 'oppo') this.first.setRotation ( Phaser.Math.DegToRad ( 0 ) );
+
+        this.removeInteractive ();
+
+        return this;
 
     }
 
