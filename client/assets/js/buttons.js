@@ -1,6 +1,6 @@
 class MyButton extends Phaser.GameObjects.Container {
 
-    constructor(scene, x, y, w, h, id, bg = '', img = '', imgFrame = 0, txt = '', fs = 0 ) {
+    constructor(scene, x, y, w, h, id, bg = '', img = '', imgframe = 0, txt = '', fs = 0 ) {
 
         super( scene, x, y, [] );
         
@@ -9,9 +9,9 @@ class MyButton extends Phaser.GameObjects.Container {
 
         this.bg = bg;
 
-        this.img = img;
+        //this.img = img;
 
-        this.imgFrame = imgFrame;
+        this.imgframe = imgframe;
 
         this.isClicked = false;
 
@@ -26,7 +26,7 @@ class MyButton extends Phaser.GameObjects.Container {
         }
         
         if ( img != '') {
-            let myImg = scene.add.image ( 0, 0, img, imgFrame );
+            let myImg = scene.add.image ( 0, 0, img, imgframe );
             this.add ( myImg );
         }
 
@@ -51,6 +51,14 @@ class MyButton extends Phaser.GameObjects.Container {
         });
         
         scene.add.existing(this);
+
+    }
+
+    toggle ( frame ) {
+
+        const currentframe = this.getAt(1).frame.name;
+
+        this.getAt (1).setFrame ( currentframe == this.imgframe ? frame : this.imgframe );
 
     }
 

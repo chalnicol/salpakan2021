@@ -120,6 +120,9 @@ class SceneA extends Phaser.Scene {
 
         });
 
+        this.burger = brgr;
+
+
 
         //add pieces container..
         this.piecesCont = this.add.container (0, 0);
@@ -144,19 +147,7 @@ class SceneA extends Phaser.Scene {
 
     }
 
-    createCapturedContainer ()
-    {
 
-        console.log ('this..');
-
-        this.capturedCont = this.add.container ( 0, 1080);
-
-        const bg = this.add.image ( 960, 540, 'capturedbg' );
-
-        this.capturedCont.add ( bg );
-
-
-    }
 
     playMusic ( off = false ){
 
@@ -272,7 +263,21 @@ class SceneA extends Phaser.Scene {
     
     }
     
-    createControls ( proper = false ) 
+    createCapturedContainer ()
+    {
+
+        console.log ('this..');
+
+        this.capturedCont = this.add.container ( 0, 1080);
+
+        const bg = this.add.image ( 960, 540, 'capturedbg' );
+
+        this.capturedCont.add ( bg );
+
+
+    }
+
+    createControls () 
     {
         
         //..
@@ -281,62 +286,68 @@ class SceneA extends Phaser.Scene {
 
         this.controlBtnsCont = this.add.container ( 1920, 0).setDepth (9999);
 
-        const rct = this.add.rectangle ( 0, 150, cntW, cntH, 0x3a3a3a, 0.7 ).setOrigin (0);
+        const rct = this.add.rectangle ( 0, 150, cntW, cntH, 0x3a3a3a, 0.8 ).setOrigin (0).setInteractive();
 
         this.controlBtnsCont.add ( rct );
 
         
         //..
 
-        const btnsTop = 220, btnsLeft = 150;
+        const btnsTop = 230, btnsLeft = 150;
 
-        const btnArr = [ 'leave', 'emoji', 'sound', 'music' ];
+        const btnArr = [
+
+            { 
+                name : 'leave', 
+                desc : 'Leave Game',
+                func : () => {
+                    this.showControls ( false );
+                    this.showExitPrompt ();
+                }
+            },
+            { 
+                name : 'emoji', 
+                desc : 'Send Emoji',
+                func : () => {
+                    this.showEmoji ();
+                    this.showControls ( false );
+                }
+            },
+            { 
+                name : 'sound', 
+                desc : 'Sound On/Off',
+                func : () => {
+                    this.soundOff = !this.soundOff;
+                }
+            },
+            { 
+                name : 'music', 
+                desc : 'Music On/Off',
+                func : () => {
+                    this.musicOff = !this.musicOff;
+                    this.playMusic ( this.musicOff );
+                }
+            },
+
+        ];
+
 
         for ( let i=0; i<btnArr.length; i++ ) {
 
-            let xp = btnsLeft + (i * 120), yp = btnsTop;
+            let xp = btnsLeft + (i * 150), yp = btnsTop;
 
-            let btnCont = new MyButton ( this, xp, yp, 100, 100, btnArr[i], 'conts_sm', 'imgBtns', i ).setName (btnArr[i]);
+            let btnCont = new MyButton ( this, xp, yp, 100, 100, btnArr[i].name, 'conts_sm', 'imgBtns', i ).setName ( btnArr[i].name );
 
             btnCont.on('pointerup', function () {
                 
                 this.btnState ('idle');
 
-                switch (this.id) {
-                    case 'leave':
-                        
-                        this.scene.showControls ( false );
+                if ( i >= 2 ) this.toggle ( i + 2 );
 
-                        this.scene.showExitPrompt ();
-                        break;
-                    case 'sound':
-                        this.scene.soundOff = !this.scene.soundOff;
+                btnArr [ i ].func ();
 
-                        console.log ( this.imgFrame);
-
-                        this.getAt(1).setFrame ( this.scene.soundOff ? Number(this.imgFrame)+2 : this.imgFrame );
-
-                        break;
-                    case 'music':
-
-                        this.scene.musicOff = !this.scene.musicOff;
-
-                        this.getAt(1).setFrame ( this.scene.musicOff ? Number(this.imgFrame)+2 : this.imgFrame );
-
-                        this.scene.playMusic ( this.scene.musicOff );
-
-                        break;
-                    case 'emoji':
-
-                        this.scene.showEmoji ();
-
-                        this.scene.showControls ( false );
-
-                        break;
-                    default:
-                }
-               
             });
+
             btnCont.on('pointerdown', function () {
                 
                 this.btnState ('pressed');
@@ -345,7 +356,7 @@ class SceneA extends Phaser.Scene {
               
             });
 
-            const txt = this.add.text (xp, yp + 70, btnArr[i], { color : '#fff', fontFamily:'Oswald', fontSize: 24 }).setOrigin(0.5);
+            const txt = this.add.text (xp, yp + 70, btnArr[i].desc, { color : '#fff', fontFamily:'Oswald', fontSize: 20 }).setOrigin(0.5);
 
             this.controlBtnsCont.add ( [btnCont, txt] );
 
@@ -353,14 +364,48 @@ class SceneA extends Phaser.Scene {
 
         //main btns..
 
-        let mainBtnArr = ( proper ) ?  ['preset', 'random', 'ready'] : [ 'draw', 'da', 'de'] ;
+        const mainBtnArr = [
 
+            { 
+                desc : 'Random Position',
+                func : () => {
+
+                    const postArr = this.generateRandomArr();
+                        
+                    this.repositionPieces ('self', postArr);
+                }
+            },
+            { 
+                desc : 'Preset Position',
+                func : () => {
+
+                    this.repositionPieces ('self', this.presets [ this.presetIndex] );
+
+                    this.presetIndex += 1;
+
+                    if ( this.presetIndex >= this.presets.length ) this.presetIndex = 0;
+
+                }
+            },
+            { 
+                
+                desc : 'Make Ready',
+                func : () => {
+                    
+                    this.showControls (false);
+
+                    this.startCommencement ();
+
+                }
+            }
+        ];
 
         for ( let i=0; i<mainBtnArr.length; i++ ) {
   
-            let xp = btnsLeft + (i * 120), yp = btnsTop + 200;
 
-            let mainBtn = new MyButton ( this, xp, yp, 100, 100, mainBtnArr[i], 'conts_sm', 'imgBtns',  i + 6 );
+            let xp = btnsLeft + (i * 170), yp = btnsTop + 170;
+
+            let mainBtn = new MyButton ( this, xp, yp, 100, 100, 'mainBtn' + i, 'conts_sm', 'imgBtns',  i + 6 ).setName ('mainBtn' + i );
 
             mainBtn.on('pointerdown', function () {
                 
@@ -370,48 +415,100 @@ class SceneA extends Phaser.Scene {
               
             });
 
-            mainBtn.on('pointerup', () => {
+            mainBtn.on('pointerup', function () {
                 
-                //..
+                this.btnState ('idle');
 
-                switch (mainBtn.id) {
+                mainBtnArr [i].func ();
 
-                    case 'random':
-                        //..
-                        const postArr = this.generateRandomArr();
-                        
-                        this.repositionPieces ('self', postArr);
-
-                        break;
-                    case 'preset':
-                        //.. 
-                        this.repositionPieces ('self', this.presets [ this.presetIndex] );
-
-                        this.presetIndex += 1;
-
-                        if ( this.presetIndex >= this.presets.length ) this.presetIndex = 0;
-
-                        break;
-                    case 'ready':
-                        //..
-
-                        this.showControls (false);
-
-                        this.startCommencement ();
-
-                        
-                        break;
-                    default:
-                }
-               
             });
 
-            const txt = this.add.text (xp, yp + 70, mainBtnArr[i], { color : '#fff', fontFamily:'Oswald', fontSize: 24 }).setOrigin(0.5);
+            const txt = this.add.text (xp, yp + 70, mainBtnArr[i].desc, { color : '#fff', fontFamily:'Oswald', fontSize: 20 }).setOrigin(0.5).setName ( 'desc' + i );
 
             this.controlBtnsCont.add ( [mainBtn, txt] );
 
         }
 
+
+    }
+
+    replaceMainControls () 
+    {
+
+        for ( var i = 0; i < 3; i++ ) {
+
+            this.controlBtnsCont.getByName ('mainBtn' + i ).destroy();
+
+            this.controlBtnsCont.getByName ('desc' + i ).destroy();
+            
+        }
+
+        const btnsTop = 220, btnsLeft = 150;
+
+        const mainBtnArr = [
+            { 
+                desc : 'Declare Draw',
+                func : () => {
+
+                    this.showControls (false);
+
+                }
+            },
+            { 
+                desc : 'Resign',
+                func : () => {
+
+                    this.showControls (false);
+
+                }
+            },
+            { 
+                
+                desc : 'Reveal Pieces',
+                func : () => {
+                    
+                    this.showControls (false);
+                }
+            },
+            { 
+                
+                desc : 'Show Captured',
+                func : () => {
+                    //..
+
+                    this.showControls (false);
+
+                }
+            }
+        ];
+
+        for ( let i=0; i<mainBtnArr.length; i++ ) {
+  
+            let xp = btnsLeft + (i * 160 ), yp = btnsTop + 180;
+
+            let mainBtn = new MyButton ( this, xp, yp, 100, 100, 'mainBtn' + i, 'conts_sm', 'imgBtns',  i + 9 ).setName ('mainBtn' + i );
+
+            mainBtn.on('pointerdown', function () {
+                
+                this.btnState ('pressed');
+
+                this.scene.playSound ('clicka');
+              
+            });
+
+            mainBtn.on('pointerup', function () {
+                
+                this.btnState ('idle');
+
+                mainBtnArr [i].func ();
+
+            });
+
+            const txt = this.add.text (xp, yp + 70, mainBtnArr[i].desc, { color : '#fff', fontFamily:'Oswald', fontSize: 20 }).setOrigin(0.5).setName ( 'desc' + i );
+
+            this.controlBtnsCont.add ( [mainBtn, txt] );
+
+        }
 
     }
 
@@ -430,13 +527,7 @@ class SceneA extends Phaser.Scene {
 
     }
 
-    replaceMainControls () {
-
-
-
-    }
-
-
+    
     //..
 
     createGamePieces ( plyr, clr, flipped, activated ) {
@@ -1106,16 +1197,18 @@ class SceneA extends Phaser.Scene {
         //create oppo pieces..
         this.createGamePieces ( 'oppo', this.players['oppo'].chip, true, false );
 
+        //..
+        
+
         //show prompt..
         this.time.delayedCall ( 800, () => {
+
+            this.replaceMainControls();
+
             this.showCommenceScreen ();
+
         }, [], this);
         
-        // this.time.delayedCall ( 1300, function () {
-
-        //    
-        // }, [], this);
-
 
     }
 
@@ -1124,16 +1217,16 @@ class SceneA extends Phaser.Scene {
 
         //this.commenceElements = [];
 
-        this.commenceCont= this.add.container (0, 0);
+        this.commenceCont= this.add.container (960, 550);
 
 
-        const img0 = this.add.image ( 940, 600, 'commence');
+        const img0 = this.add.image ( -20, 60, 'commence');
 
-        const img1 = this.add.image ( 1020, 540, 'commence').setScale(0.7);
+        const img1 = this.add.image ( 60, 0, 'commence').setScale(0.7);
 
-        const img2 = this.add.image ( 950, 510, 'commence').setScale (0.5);
+        const img2 = this.add.image ( -10, -30, 'commence').setScale (0.5);
 
-        const commence = this.add.text ( 960, 580, '3', {color:'#333', fontFamily:'Oswald', fontSize: 120 }).setStroke('#dedede', 5 ).setOrigin(0.5);
+        const commence = this.add.text ( 0, 40, '3', {color:'#333', fontFamily:'Oswald', fontSize: 120 }).setStroke('#dedede', 5 ).setOrigin(0.5);
 
         this.commenceCont.add ([ img0, img1, img2, commence ]);
 
