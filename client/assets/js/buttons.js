@@ -68,19 +68,19 @@ class MyButton extends Phaser.GameObjects.Container {
 
             this.removeInteractive ();
 
-            this.alpha = 0.8;
+            //this.alpha = 0.9;
 
             if ( this.bg == '') {
                 this.first.setFillStyle ( 0xd3d3d3, 1 );
             }else {
-                this.first.setFrame ( 0 );
+                this.first.setFrame ( 3 );
             }
 
         }else {
 
             this.setInteractive ();
 
-            this.alpha = 1;
+            //this.alpha = 1;
 
             if ( this.bg == '') {
                 this.first.setFillStyle ( 0xffffff, 1 );

@@ -316,9 +316,9 @@ class SceneA extends Phaser.Scene {
 
         this.controlBtnsCont = this.add.container ( 1920, 0).setDepth (9999);
 
-        const rct = this.add.image ( 395, 335, 'controlsBg' ).setInteractive ();
+        const rct = this.add.image ( 395, 355, 'controlsBg' ).setInteractive ();
 
-        const rcta = this.add.rectangle ( 26, 335, 52, 380 ).setInteractive ();
+        const rcta = this.add.rectangle ( 33, 355, 66, 380 ).setInteractive ();
 
         rcta.on('pointerup', () => {
             this.playSound ('clicka');
@@ -330,7 +330,7 @@ class SceneA extends Phaser.Scene {
         
         //..
 
-        const btnsTop = 230, btnsLeft = 180;
+        const btnsTop = 250, btnsLeft = 180;
 
         const btnArr = [
 
@@ -492,7 +492,7 @@ class SceneA extends Phaser.Scene {
             
         }
 
-        const btnsTop = 230, btnsLeft = 180;
+        const btnsTop = 250, btnsLeft = 180;
 
         const mainBtnArr = [
             { 
@@ -607,7 +607,7 @@ class SceneA extends Phaser.Scene {
                 const piece = new GamePiece ( this, 960, 540, w, h, plyr + counter, plyr, clr, base, post, rnk, rnkName, flipped, activated );
 
                 piece.on('pointerdown', () => {
-                    this.playSound ('clicka');
+                    this.playSound ('clickb');
                 });
                 piece.on('pointerup', () => {
                     this.pieceIsClicked ( piece );
@@ -706,7 +706,7 @@ class SceneA extends Phaser.Scene {
                     const blinka = new MyBlinkers ( this, xp, yp, 190, 114, 'blink'+i, i+45, 4, true );
 
                     blinka.on ('pointerdown', () => {
-                        this.playSound ('clicka');
+                        this.playSound ('clickb');
                     });
 
                     blinka.on ('pointerup', () => {
@@ -738,7 +738,7 @@ class SceneA extends Phaser.Scene {
                 const blinkb = new MyBlinkers ( this, xp, yp, 190, 114, 'blink'+i, adjArr[i].post, adjArr[i].dir, activated );
 
                 blinkb.on ('pointerdown', () => {
-                    this.playSound ('clicka');
+                    this.playSound ('clickb');
                 });
 
                 blinkb.on ('pointerup', () => {
@@ -1118,7 +1118,7 @@ class SceneA extends Phaser.Scene {
 
         const startX = ( piece.player == 'self' ) ? 363.75 : 1068.75,
 
-              startY = 450;
+              startY = 400;
         
         const ix = Math.floor ( this.capturedCounter [ piece.player ]/4 ),
 
@@ -1184,12 +1184,12 @@ class SceneA extends Phaser.Scene {
 
         this.createBlinkers ( toMove.post, resident, false );
 
-        this.playSound ('clicka');
+        this.playSound ('clickb');
 
 
         this.time.delayedCall ( 500, function () {
 
-            this.playSound ('clicka');
+            this.playSound ('clickb');
 
             this.removeBlinkers ();
             
@@ -1331,9 +1331,10 @@ class SceneA extends Phaser.Scene {
             
             this.createGamePieces ('self', this.players['self'].chip, true, true);
 
-            this.showControls ();
-
         }, [], this);
+
+        this.time.delayedCall ( 1200, this.showControls, [], this );
+
       
     }
 
@@ -1699,7 +1700,7 @@ class SceneA extends Phaser.Scene {
 
         for ( var i = 0; i < 3; i++ ) {
 
-            this.controlBtnsCont.getByName ('mainBtn' + i ).removeInteractive ();
+            this.controlBtnsCont.getByName ('mainBtn' + i ).setBtnEnabled (false);
 
         }
         this.time.delayedCall ( 300, () => {
@@ -1807,9 +1808,9 @@ class SceneA extends Phaser.Scene {
 
         this.add.tween ({
             targets : this.promptCont.last,
-            y : 540,
+            y : 590,
             duration : 400,
-            easeParams : [ 0.5, 1],
+            easeParams : [ 1.1, 0.6 ],
             ease : 'Elastic',
             delay : 100
         });
@@ -1822,7 +1823,7 @@ class SceneA extends Phaser.Scene {
         const btnArr = [
 
             { 
-                'txt' : 'Confirm', 
+                'txt' : 'Proceed', 
                 'func' : () => {
 
                     this.removePrompt()
@@ -1844,7 +1845,7 @@ class SceneA extends Phaser.Scene {
         const btnArr = [
 
             { 
-                'txt' : 'Confirm', 
+                'txt' : 'Proceed', 
                 'func' : () => {
 
                     this.removePrompt()
@@ -1857,7 +1858,7 @@ class SceneA extends Phaser.Scene {
 
         ];
 
-        this.showPrompt ( 'Are you sure to offer a draw?', 34, -30, false, btnArr );
+        this.showPrompt ( 'Are you sure you want to offer a draw?', 30, -30, false, btnArr );
 
     }
 
@@ -1866,7 +1867,7 @@ class SceneA extends Phaser.Scene {
         const btnArr = [
 
             { 
-                'txt' : 'Confirm', 
+                'txt' : 'Proceed', 
                 'func' : () => {
 
                     this.removePrompt()
