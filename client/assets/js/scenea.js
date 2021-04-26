@@ -321,6 +321,7 @@ class SceneA extends Phaser.Scene {
         const rcta = this.add.rectangle ( 26, 335, 52, 380 ).setInteractive ();
 
         rcta.on('pointerup', () => {
+            this.playSound ('clicka');
             this.showControls (false);
         });
 
@@ -495,11 +496,13 @@ class SceneA extends Phaser.Scene {
 
         const mainBtnArr = [
             { 
-                desc : 'Declare Draw',
+                desc : 'Offer A Draw',
                 func : () => {
 
                     this.showControls (false);
 
+                    this.showDrawPrompt ();
+                    
                 }
             },
             { 
@@ -507,6 +510,8 @@ class SceneA extends Phaser.Scene {
                 func : () => {
 
                     this.showControls (false);
+
+                    this.showResignPrompt ();
 
                 }
             },
@@ -516,6 +521,8 @@ class SceneA extends Phaser.Scene {
                 func : () => {
                     
                     this.showControls (false);
+
+                    this.showRevealPrompt ();
                 }
             },
             { 
@@ -1690,6 +1697,11 @@ class SceneA extends Phaser.Scene {
 
         this.playerIndicatorsCont.getByName ( winner ).last.text = 'Wins : ' +  this.players [ winner ].wins;
 
+        for ( var i = 0; i < 3; i++ ) {
+
+            this.controlBtnsCont.getByName ('mainBtn' + i ).removeInteractive ();
+
+        }
         this.time.delayedCall ( 300, () => {
             
             this.playSound ('xyloriff', 0.3);
@@ -1748,7 +1760,7 @@ class SceneA extends Phaser.Scene {
 
         let miniCont = this.add.container ( 960, 1350 );
 
-        let img = this.add.image ( 0, 0, sm ? 'prompt_sm' : 'prompt' );
+        let img = this.add.image ( 0, 0, sm ? 'prompt_sm' : 'prompt_main' );
 
         let txt = this.add.text (  0, txtPos, myTxt, { fontSize: fs, fontFamily:'Oswald', color: '#6e6e6e' }).setOrigin(0.5);
 
@@ -1805,11 +1817,91 @@ class SceneA extends Phaser.Scene {
 
     }
 
-    showEndPrompt ( winner ) {
-
-        const txt = winner == 'self' ? 'Congrats, You Win' : 'Sorry, You Lose';
+    showResignPrompt () {
 
         const btnArr = [
+
+            { 
+                'txt' : 'Confirm', 
+                'func' : () => {
+
+                    this.removePrompt()
+                }
+            },
+            { 
+                'txt' : 'Cancel', 
+                'func' : () => this.removePrompt()
+            },
+
+        ];
+
+        this.showPrompt ( 'Are you sure you want to resign?', 36, -30, false, btnArr );
+
+    }
+
+    showDrawPrompt () {
+
+        const btnArr = [
+
+            { 
+                'txt' : 'Confirm', 
+                'func' : () => {
+
+                    this.removePrompt()
+                }
+            },
+            { 
+                'txt' : 'Cancel', 
+                'func' : () => this.removePrompt()
+            },
+
+        ];
+
+        this.showPrompt ( 'Are you sure to offer a draw?', 34, -30, false, btnArr );
+
+    }
+
+    showRevealPrompt () {
+
+        const btnArr = [
+
+            { 
+                'txt' : 'Confirm', 
+                'func' : () => {
+
+                    this.removePrompt()
+                }
+            },
+            { 
+                'txt' : 'Cancel', 
+                'func' : () => this.removePrompt()
+            },
+
+        ];
+
+        this.showPrompt ( 'Are you sure you want to reveal?', 34, -30, false, btnArr );
+
+    }
+
+    showEndPrompt ( winner ) {
+
+       
+        let txt = '';
+
+        switch (winner) {
+            case 'self':
+                txt = 'Congrats, You Win';
+                break;
+            case 'oppo':
+                txt = 'Sorry, You Lose';
+                break;
+            default:
+                txt = 'This game is a draw.';
+                break;
+        }
+
+        const btnArr = [
+
             { 
                 'txt' : 'Play Again', 
                 'func' : () => this.playerRematch ()
@@ -1819,7 +1911,6 @@ class SceneA extends Phaser.Scene {
                 'func' : () => this.leaveGame()
             },
 
-           
         ];
 
         this.showPrompt ( txt, 40, -20, false, btnArr );
@@ -1849,7 +1940,7 @@ class SceneA extends Phaser.Scene {
             { 'txt' : 'Cancel', 'func' : () => this.removePrompt () }
         ];
 
-        this.showPrompt ( 'Are you sure you want to leave?', 30, -20, false, btnArr );
+        this.showPrompt ( 'Are you sure you want to leave?', 34, -30, false, btnArr );
 
     }
 
