@@ -1694,15 +1694,19 @@ class SceneA extends Phaser.Scene {
 
         this.gameOver = true;
 
-        this.players [ winner ].wins += 1;
+        if ( winner != '' ) {
 
-        this.playerIndicatorsCont.getByName ( winner ).last.text = 'Wins : ' +  this.players [ winner ].wins;
+            this.players [ winner ].wins += 1;
+
+            this.playerIndicatorsCont.getByName ( winner ).last.text = 'Wins : ' +  this.players [ winner ].wins;
+
+        }
 
         for ( var i = 0; i < 3; i++ ) {
 
             this.controlBtnsCont.getByName ('mainBtn' + i ).setBtnEnabled (false);
-
         }
+
         this.time.delayedCall ( 300, () => {
             
             this.playSound ('xyloriff', 0.3);
@@ -1810,7 +1814,7 @@ class SceneA extends Phaser.Scene {
             targets : this.promptCont.last,
             y : 590,
             duration : 400,
-            easeParams : [ 1.1, 0.6 ],
+            easeParams : [ 1.1, 0.8 ],
             ease : 'Elastic',
             delay : 100
         });
@@ -1826,7 +1830,17 @@ class SceneA extends Phaser.Scene {
                 'txt' : 'Proceed', 
                 'func' : () => {
 
-                    this.removePrompt()
+                    this.removePrompt();
+
+                    if ( this.gameData.game == 0 ) {
+
+                        this.endGame ('oppo');
+
+                    }else {
+
+                        //todo..
+                    }
+                    
                 }
             },
             { 
@@ -1848,7 +1862,43 @@ class SceneA extends Phaser.Scene {
                 'txt' : 'Proceed', 
                 'func' : () => {
 
+
                     this.removePrompt()
+
+                    this.controlBtnsCont.getByName ('mainBtn0').setBtnEnabled (false);
+
+                    if ( this.gameData.game == 0 ) {
+
+                        this.showPrompt ('Waiting for response..', 34, 0, true );
+
+                        this.time.delayedCall ( 800, () => {
+
+                            const decision = Math.floor ( Math.random() * 1000 );
+
+                            if ( decision > 200 ) {
+
+                                this.showPrompt ('Opponent has declined. Game resumes.', 30, 0, true );
+
+                                this.time.delayedCall ( 2000, () => this.removePrompt(), [], this );
+
+
+                            }else {
+
+                                //his.showPrompt ('..', 34, 0, true );
+                                this.endGame ('');
+
+
+                            }
+
+                        }, [], this );
+
+                    }else {
+
+                        //todo..
+                    }
+                    
+
+                    
                 }
             },
             { 
@@ -1870,7 +1920,26 @@ class SceneA extends Phaser.Scene {
                 'txt' : 'Proceed', 
                 'func' : () => {
 
-                    this.removePrompt()
+                    if ( this.gameData.game == 0 ) {
+
+                        this.playSound ('warp');
+
+                        this.controlBtnsCont.getByName ('mainBtn2').setBtnEnabled (false);
+
+                        this.showPrompt ('Your pieces are revealed to the opponent.', 30, 0, true );
+
+                        this.time.delayedCall ( 1500, () => this.removePrompt(), [], this );
+                            
+                        console.log ('this...');
+                        
+
+                    }else {
+
+                        //todo..
+                        
+                    }
+
+                    
                 }
             },
             { 
