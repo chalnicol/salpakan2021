@@ -1342,9 +1342,19 @@ class SceneA extends Phaser.Scene {
         this.activatePieces ( 'self', false );
 
         //create oppo pieces..
-        this.createGamePieces ( 'oppo', this.players['oppo'].chip, true, false );
+        this.createGamePieces ( 'oppo', this.players['oppo'].chip, false, false );
 
         //..
+
+        if ( this.gameData.game == 0 ) {
+            
+            this.playerIndicatorsCont.getByName ('self').ready ();
+
+            this.playerIndicatorsCont.getByName ('oppo').ready ();
+        }else {
+
+            //todo..
+        }
         
 
         //show prompt..
@@ -1478,17 +1488,9 @@ class SceneA extends Phaser.Scene {
 
         for ( var i in this.players ) {
 
-            let pInd = this.add.container ( sx + (counter * ( w+sp)), sy ).setName (i);
+            //let pInd = this.add.container ( sx + (counter * ( w+sp)), sy ).setName (i);
 
-            let img = this.add.image ( 0, 0, 'plyrInd');
-
-            let crc = this.add.circle ( 200, 0, 15, 0x6e6e6e, 1 ).setStrokeStyle ( 1, 0x9e9e9e );
-
-            let name = this.add.text ( -150, -34, this.players[i].username, { fontSize: 30, fontFamily:'Oswald', color: '#838383' });
-
-            let wins = this.add.text ( -150, 6, 'Wins : 0', { fontSize: 26, fontFamily:'Oswald', color: '#9f9f9f' });
-
-            pInd.add ( [ img, crc, name, wins] );
+            let pInd = new Indicator (this, sx + (counter * ( w+sp )), sy, i, this.players [i].username );
 
             this.playerIndicatorsCont.add ( pInd );
 
@@ -1688,9 +1690,9 @@ class SceneA extends Phaser.Scene {
 
         let idle = turn == 'self' ? 'oppo' : 'self';
 
-        this.playerIndicatorsCont.getByName ( turn ).getAt (1).setFillStyle ( 0xffff00, 1);
+        this.playerIndicatorsCont.getByName ( turn ).setTurn ( true );
 
-        this.playerIndicatorsCont.getByName ( idle ).getAt (1).setFillStyle ( 0xffffff, 1);
+        this.playerIndicatorsCont.getByName ( idle ).setTurn ( false );
 
     }
 
@@ -1702,7 +1704,7 @@ class SceneA extends Phaser.Scene {
 
             this.players [ winner ].wins += 1;
 
-            this.playerIndicatorsCont.getByName ( winner ).last.text = 'Wins : ' +  this.players [ winner ].wins;
+            this.playerIndicatorsCont.getByName ( winner ).setWins ( this.players [ winner ].wins );
 
         }
 
@@ -1929,6 +1931,8 @@ class SceneA extends Phaser.Scene {
                         this.playSound ('warp');
 
                         this.controlBtnsCont.getByName ('mainBtn2').setBtnEnabled (false);
+
+                        this.playerIndicatorsCont.getByName('oppo').showReveal();
 
                         this.showPrompt ('Your pieces are revealed to the opponent.', 30, 0, true );
 
