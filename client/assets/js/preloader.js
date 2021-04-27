@@ -50,6 +50,8 @@ class Preloader extends Phaser.Scene {
 
         this.load.image('controlsBg', 'client/assets/images/controlsBg.png');
 
+        this.load.image('emojibubble', 'client/assets/images/emojibubble.png');
+
         this.load.spritesheet('inds', 'client/assets/images/ind_thumbs.png', { frameWidth: 40, frameHeight: 40 });
 
         this.load.spritesheet('burger', 'client/assets/images/burger.png', { frameWidth: 90, frameHeight: 90 });

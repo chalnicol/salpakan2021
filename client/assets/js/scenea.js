@@ -163,7 +163,7 @@ class SceneA extends Phaser.Scene {
             
             this.time.delayedCall (500, () => {
 
-                if ( this.sentEmojisShown ) this.removeSentEmojis();
+                //if ( this.sentEmojisShown ) this.removeSentEmojis();
 
                 this.showSentEmojis ( data.plyr, data.emoji );
 
@@ -1086,7 +1086,7 @@ class SceneA extends Phaser.Scene {
 
             const isWinner = this.checkWinner();
 
-            console.log ('win', isWinner );
+            //console.log ('win', isWinner );
 
             if ( isWinner != '' ) {
 
@@ -1198,11 +1198,19 @@ class SceneA extends Phaser.Scene {
         
         this.setTurnIndicator ( this.turn );
 
-        if ( this.players [ this.turn ].isAI ) {
-            this.makeAI();
+        if ( this.isFlagHome ( this.turn ) ) {
+
+            this.endGame ( this.turn);
+
         }else {
-            this.activatePieces ( this.turn );
+
+            if ( this.players [ this.turn ].isAI ) {
+                this.makeAI();
+            }else {
+                this.activatePieces ( this.turn );
+            }
         }
+       
 
     }
 
@@ -1239,7 +1247,7 @@ class SceneA extends Phaser.Scene {
         }
     }
 
-    checkWinner ( ) 
+    checkWinner () 
     {
 
         const flags = this.piecesCont.getAll ('rank', 14 );
@@ -1263,6 +1271,18 @@ class SceneA extends Phaser.Scene {
 
         return '';
 
+    }
+
+    isFlagHome ( plyr ) {
+
+        const flags = this.piecesCont.getAll ('rank', 14 );
+
+        for ( var i in flags ) {
+
+            if ( flags [i].player == plyr  && flags [i].isHome() ) return true;
+        }
+
+        return false;
     }
 
     checkClash ( rankA, rankB ){
@@ -1588,16 +1608,12 @@ class SceneA extends Phaser.Scene {
 
             this.time.delayedCall ( 500, () => {
 
-                if ( this.sentEmojisShown ) this.removeSentEmojis();
-
                 this.showSentEmojis ('self', emoji );
 
             }, [], this );
 
 
             this.time.delayedCall ( 2000, () => {
-
-                if ( this.sentEmojisShown ) this.removeSentEmojis();
 
                 this.showSentEmojis ('oppo', Math.floor ( Math.random() * 12 ));
 
@@ -1622,74 +1638,35 @@ class SceneA extends Phaser.Scene {
         
         this.playSound ('message');
 
-        if ( this.emojisThread.length >= 6 ) this.emojisThread.shift();
-
-        this.emojisThread.push ( { 'plyr' : plyr, 'emoji' : emoji });
-
-        //..
-        this.emojiThreadCont = this.add.container ( 1500, 0 );
-
-
-        //const prevPost = this.add.container (0, 970 - (this.emojisThread.length * 85) );
-
-        const total = this.emojisThread.length - 1;
-
-        for ( let i in this.emojisThread ) {
-
-            let yp = 1010 - ( (total - i) * 85);
-
-            const miniCont = this.add.container ( 210, yp );
-            
-            let nme = this.players [ this.emojisThread [i].plyr ].username;
-
-            let clr = this.emojisThread [i].plyr == 'self' ? '#33cc33' : '#ff6600';
-
-            let rct = this.add.rectangle ( 0, 0, 400, 80, 0xcecece, 0.5 );
-            
-            let txt = this.add.text ( -180, 0, nme +':', { color: clr, fontFamily:'Oswald', fontSize : 26 }).setOrigin ( 0, 0.5 );
-
-            let img = this.add.image ( 150, 0, 'emojis', this.emojisThread [i].emoji ).setScale ( 0.8 );
-
-            miniCont.add ([rct, txt, img]);
-
-            if ( i >= total ) {
-
-                miniCont.first.setFillStyle (0xf3f3f3, 0.6);
-                
-                miniCont.setScale (0.5)
-                
-                this.add.tween ({
-                    targets : miniCont,
-                    scaleX : 1, scaleY : 1,
-                    duration : 300,
-                    easeParams : [ 1.2, 0.6 ],
-                    ease : 'Elastic'
-                });
-            }
-
-            this.emojiThreadCont.add ( miniCont);
-
-        }
+        const xp = plyr == 'self' ? 490 : 1102, yp = 173;
 
         this.sentEmojisShown = true;
 
-        this.emojiTimer = this.time.delayedCall ( 3000, () => {
+        const emojiContainer = this.add.container ( xp, yp );
 
-            this.removeSentEmojis();
+        const bgimg = this.add.image ( 0, 0, 'emojibubble' );
+
+        const emojiimg = this.add.image ( -2, 2, 'emojis', emoji ).setScale(0.9);
+        
+        this.add.tween ({
+            targets : emojiimg,
+            y : '+=3',
+            duration : 100,
+            yoyo : true,
+            ease : 'Power3',
+            repeat : 5
+        });
+
+        emojiContainer.add ([bgimg, emojiimg]);
+
+        this.emojiTimer = this.time.delayedCall ( 2000, () => {
+
+           emojiContainer.destroy ();
 
         }, [], this );
 
     }
 
-    removeSentEmojis () {
-
-        this.emojiTimer.remove();
-        
-        this.sentEmojisShown = false;
-
-        this.emojiThreadCont.destroy();
-
-    }
 
     setTurnIndicator  ( turn ) 
     {
