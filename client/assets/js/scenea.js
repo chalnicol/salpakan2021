@@ -192,8 +192,6 @@ class SceneA extends Phaser.Scene {
 
     initPlayers () {
 
-        //console.log ( this.gameData.players );
-
 
         const names = ['Nong', 'Chalo', 'Nasty', 'Caloy'];
 
@@ -201,9 +199,7 @@ class SceneA extends Phaser.Scene {
             
             oppoAI = false, 
             
-            oppoChip = 0,
-            
-            turn = '';
+            oppoChip = 0;
 
         if (this.gameData.game == 0 ) {
 
@@ -214,15 +210,14 @@ class SceneA extends Phaser.Scene {
 
             oppoChip = this.gameData.players ['self'].chip == 0 ? 1 : 0;
 
-            turn = this.gameData.players ['self'].chip == 0 ? 'self' : 'oppo';
+            //turn = this.gameData.players ['self'].chip == 0 ? 'self' : 'oppo';
+
 
         }  else {
 
             oppoUsername = this.gameData.players ['oppo'].username;
 
             oppoChip = this.gameData.players ['oppo'].chip;
-
-            turn = this.gameData.turn;
             
         }   
 
@@ -231,7 +226,7 @@ class SceneA extends Phaser.Scene {
 
         this.players ['oppo'] = new Player ('oppo', oppoUsername, oppoChip, oppoAI );
 
-        this.turn = turn;        
+        this.turn = this.gameData.turn;     
     
     }
     
@@ -590,6 +585,8 @@ class SceneA extends Phaser.Scene {
 
         const postArr = this.generateRandomArr ();
 
+        const orderArr = this.generateRandomArr (21);
+
         let counter = 0;
 
         for ( var i = 0; i< this.gamePiecesData.length ; i++) {
@@ -618,9 +615,8 @@ class SceneA extends Phaser.Scene {
                     x : xp, y : yp,
                     duration : 200,
                     ease : 'Power3',
-                    delay : counter * 18
+                    delay : orderArr [counter] * 18
                 });
-
                 
                 this.gridData [ post ].resident = plyr == 'self' ? 1 : 2;
                 this.gridData [ post ].residentPiece = plyr + counter;
@@ -706,7 +702,7 @@ class SceneA extends Phaser.Scene {
                     const blinka = new MyBlinkers ( this, xp, yp, 190, 114, 'blink'+i, i+45, 4, true );
 
                     blinka.on ('pointerdown', () => {
-                        this.playSound ('clickb');
+                        this.playSound ('move');
                     });
 
                     blinka.on ('pointerup', () => {
@@ -738,7 +734,7 @@ class SceneA extends Phaser.Scene {
                 const blinkb = new MyBlinkers ( this, xp, yp, 190, 114, 'blink'+i, adjArr[i].post, adjArr[i].dir, activated );
 
                 blinkb.on ('pointerdown', () => {
-                    this.playSound ('clickb');
+                    this.playSound ('move');
                 });
 
                 blinkb.on ('pointerup', () => {
@@ -957,7 +953,7 @@ class SceneA extends Phaser.Scene {
             targets : toMove,
             x: this.gridData [ post ].x,
             y: this.gridData [ post ].y,
-            duration : 200,
+            duration : 150,
             ease : 'Power3'
         });
         
@@ -979,7 +975,7 @@ class SceneA extends Phaser.Scene {
     makeTurn ( plyr, post ) {
 
         //if ( this.gameInited && !this.gameOver  ) {
-        const clashDelayAction =  250;
+        const clashDelayAction =  200;
 
         const postOccupied = this.gridData [ post ].resident != 0;
 
@@ -1189,7 +1185,7 @@ class SceneA extends Phaser.Scene {
 
         this.time.delayedCall ( 500, function () {
 
-            this.playSound ('clickb');
+            this.playSound ('move');
 
             this.removeBlinkers ();
             
@@ -1343,7 +1339,7 @@ class SceneA extends Phaser.Scene {
         
 
         //deactive self pieces..
-        this.activatePieces (  this.turn, false );
+        this.activatePieces ( 'self', false );
 
         //create oppo pieces..
         this.createGamePieces ( 'oppo', this.players['oppo'].chip, true, false );
@@ -1437,7 +1433,15 @@ class SceneA extends Phaser.Scene {
     
         this.setTurnIndicator ( this.turn );
 
-        this.activatePieces ( this.turn );
+
+        if ( this.players [ this.turn ].isAI ) {
+           
+            this.time.delayedCall ( 1000, () => this.makeAI(), [], this);
+
+        }else {
+
+            this.activatePieces ( this.turn );
+        }
 
     }
 

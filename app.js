@@ -229,6 +229,9 @@ io.on('connection', function(socket){
 
 			//single player..
 
+			const playerPiece = Math.floor (Math.random() * 2);
+
+			//..
 			let roomId = plyr.username + '_' + Date.now();
 
 			let newRoom = new GameRoom ( roomId, data.gameType );
@@ -237,16 +240,20 @@ io.on('connection', function(socket){
 
 			newRoom.isClosed = true;
 
+			newRoom.turn = playerPiece;
+
 			roomList [ roomId ] = newRoom;
 
 			plyr.roomId = roomId;
 
+			
 			const gameRoomData  = {
 
 				'game' : 0,
 				'gameType' : 0,
+				'turn' : playerPiece == 0 ? 'self' : 'oppo',
 				'players' : {
-					'self' : { 'username' : plyr.username, 'chip' : 0 }
+					'self' : { 'username' : plyr.username, 'chip' : playerPiece }
 				}
 
 			};	
