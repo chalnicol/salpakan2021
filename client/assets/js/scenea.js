@@ -95,12 +95,11 @@ class SceneA extends Phaser.Scene {
         }
 
      
-        
-
         //add pieces container..
         this.piecesCont = this.add.container (0, 0);
 
-        //..
+        //add blinkers container..
+        this.blinkersCont = this.add.container ( 0, 0);
 
         this.initSoundFx ();
 
@@ -116,7 +115,14 @@ class SceneA extends Phaser.Scene {
 
         this.createControls ();
 
-        this.startPrep ();
+        this.addToControls ();
+
+
+        // start prep..
+
+        this.showPrompt ('Initializing..', 40, 0, true );
+
+        this.time.delayedCall ( 1000,  this.startPrep, [], this );
 
 
     }
@@ -234,6 +240,8 @@ class SceneA extends Phaser.Scene {
 
     createCapturedContainer ()
     {
+
+
         this.capturedScreenShown = false;
 
         this.capturedCounter = { 'self' : 0, 'oppo' : 0 };
@@ -267,12 +275,14 @@ class SceneA extends Phaser.Scene {
         });
 
 
-        this.capturedCont.add ( [rct, rctb,  bg,  rctc ]  );
+        const piecesCont = this.add.container ( 0, 0 );
+
+        this.capturedCont.add ( [ rct, rctb,  bg,  rctc, piecesCont ]  );
 
 
     }
 
-    createControls () 
+    createControls ()
     {
         
         //..
@@ -304,8 +314,6 @@ class SceneA extends Phaser.Scene {
             this.showControls ( !this.controlsHidden );
 
         });
-
-
 
         const cntW = 800, cntH = 380;
 
@@ -373,7 +381,6 @@ class SceneA extends Phaser.Scene {
 
         ];
 
-
         for ( let i=0; i<btnArr.length; i++ ) {
 
             let xp = btnsLeft + (i * 150), yp = btnsTop;
@@ -404,52 +411,113 @@ class SceneA extends Phaser.Scene {
 
         }
 
+
+    }
+
+    addToControls ( phase = 0 ) {
+
+        const btnsTop = 250, btnsLeft = 180;
+
         //main btns..
+        let spacing = phase == 0 ? 170 : 150,
 
-        const mainBtnArr = [
+            frme = phase == 0 ? 6 : 9;
 
-            { 
-                desc : 'Preset Position',
-                func : () => {
+        let mainBtnArr = [];
 
-                    this.repositionPieces ('self', this.presets [ this.presetIndex] );
+        if ( phase == 0 ) {
 
-                    this.presetIndex += 1;
+            mainBtnArr = [
 
-                    if ( this.presetIndex >= this.presets.length ) this.presetIndex = 0;
-
-                }
-            },
-
-            { 
-                desc : 'Random Position',
-                func : () => {
-
-                    const postArr = this.generateRandomArr();
-                        
-                    this.repositionPieces ('self', postArr);
-                }
-            },
-           
-            { 
-                
-                desc : 'Make Ready',
-                func : () => {
+                { 
+                    desc : 'Preset Position',
+                    func : () => {
+    
+                        this.repositionPieces ('self', this.presets [ this.presetIndex] );
+    
+                        this.presetIndex += 1;
+    
+                        if ( this.presetIndex >= this.presets.length ) this.presetIndex = 0;
+    
+                    }
+                },
+    
+                { 
+                    desc : 'Random Position',
+                    func : () => {
+    
+                        const postArr = this.generateRandomArr();
+                            
+                        this.repositionPieces ('self', postArr);
+                    }
+                },
+               
+                { 
                     
-                    this.showControls (false);
-
-                    this.startCommencement ();
-
+                    desc : 'Make Ready',
+                    func : () => {
+                        
+                        this.showControls (false);
+    
+                        this.startCommencement ();
+    
+                    }
                 }
-            }
-        ];
+            ];
 
+        }else {
+
+            mainBtnArr = [
+                { 
+                    desc : 'Offer A Draw',
+                    func : () => {
+    
+                        this.showControls (false);
+    
+                        this.showDrawPrompt ();
+                        
+                    }
+                },
+                { 
+                    desc : 'Resign',
+                    func : () => {
+    
+                        this.showControls (false);
+    
+                        this.showResignPrompt ();
+    
+                    }
+                },
+                { 
+                    
+                    desc : 'Reveal Pieces',
+                    func : () => {
+                        
+                        this.showControls (false);
+    
+                        this.showRevealPrompt ();
+                    }
+                },
+                { 
+                    
+                    desc : 'Show Captured',
+                    func : () => {
+                        //..
+    
+                        this.showControls (false);
+                        
+                        this.showCaptured ();
+    
+                    }
+                }
+            ];
+        }
+        
         for ( let i=0; i<mainBtnArr.length; i++ ) {
   
+            let xp = btnsLeft + ( i * spacing ), yp = btnsTop + 180;
 
-            let xp = btnsLeft + (i * 170), yp = btnsTop + 170;
-
-            let mainBtn = new MyButton ( this, xp, yp, 100, 100, 'mainBtn' + i, 'conts_sm', 'imgBtns',  i + 6 ).setName ('mainBtn' + i );
+            let mainBtn = new MyButton ( this, xp, yp, 100, 100, 'mainBtn' + i, 'conts_sm', 'imgBtns',  i + frme ).setName ('mainBtn' + i );
 
             mainBtn.on('pointerdown', function () {
                 
@@ -476,10 +544,12 @@ class SceneA extends Phaser.Scene {
 
     }
 
-    replaceMainControls () 
+    switchMainControls ( phase = 0 ) 
     {
 
-        for ( var i = 0; i < 3; i++ ) {
+        const len = phase == 0 ? 4 : 3;
+
+        for ( var i = 0; i < len; i++ ) {
 
             this.controlBtnsCont.getByName ('mainBtn' + i ).destroy();
 
@@ -487,92 +557,19 @@ class SceneA extends Phaser.Scene {
             
         }
 
-        const btnsTop = 250, btnsLeft = 180;
-
-        const mainBtnArr = [
-            { 
-                desc : 'Offer A Draw',
-                func : () => {
-
-                    this.showControls (false);
-
-                    this.showDrawPrompt ();
-                    
-                }
-            },
-            { 
-                desc : 'Resign',
-                func : () => {
-
-                    this.showControls (false);
-
-                    this.showResignPrompt ();
-
-                }
-            },
-            { 
-                
-                desc : 'Reveal Pieces',
-                func : () => {
-                    
-                    this.showControls (false);
-
-                    this.showRevealPrompt ();
-                }
-            },
-            { 
-                
-                desc : 'Show Captured',
-                func : () => {
-                    //..
-
-                    this.showControls (false);
-                    
-                    this.showCaptured ();
-
-                }
-            }
-        ];
-
-        for ( let i=0; i<mainBtnArr.length; i++ ) {
-  
-            let xp = btnsLeft + (i * 150 ), yp = btnsTop + 180;
-
-            let mainBtn = new MyButton ( this, xp, yp, 100, 100, 'mainBtn' + i, 'conts_sm', 'imgBtns',  i + 9 ).setName ('mainBtn' + i );
-
-            mainBtn.on('pointerdown', function () {
-                
-                this.btnState ('pressed');
-
-                this.scene.playSound ('clicka');
-              
-            });
-
-            mainBtn.on('pointerup', function () {
-                
-                this.btnState ('idle');
-
-                mainBtnArr [i].func ();
-
-            });
-
-            const txt = this.add.text (xp, yp + 70, mainBtnArr[i].desc, { color : '#fff', fontFamily:'Oswald', fontSize: 20 }).setOrigin(0.5).setName ( 'desc' + i );
-
-            this.controlBtnsCont.add ( [mainBtn, txt] );
-
-        }
+        this.addToControls ( phase );
 
     }
 
-    showControls ( shown = true )
+    showControls ( show = true )
     {
 
-        this.controlsHidden = !shown;
+        this.controlsHidden = !show;
 
         this.add.tween ({
             targets : this.controlBtnsCont,
-            x : ( shown ) ? 1120 : 1920,
-            duration : 300,
+            x : ( show ) ? 1120 : 1920,
+            duration : show ? 500 : 300,
             ease : 'Power3',
         });
 
@@ -689,8 +686,6 @@ class SceneA extends Phaser.Scene {
 
     createBlinkers ( piecePost, resident = 0, activated = true ) {
 
-        this.blinkersCont = this.add.container ( 0, 0);
-
         if ( this.gamePhase == 0 ) {
 
             for ( let i = 0; i < 27; i++ ) {
@@ -757,7 +752,9 @@ class SceneA extends Phaser.Scene {
 
     removeBlinkers () 
     {
-        this.blinkersCont.destroy ();
+        this.blinkersCont.each ( child => {
+            child.destroy();
+        });
     }
 
     prepMove ( gridPos ) {
@@ -1123,7 +1120,7 @@ class SceneA extends Phaser.Scene {
 
         piece.setPosition ( startX + (iy * 162.5), startY + (ix * 98.2) ).setScale (0.9)
         
-        this.capturedCont.add (piece);
+        this.capturedCont.last.add (piece);
 
         this.capturedCounter[piece.player] += 1;
 
@@ -1168,9 +1165,6 @@ class SceneA extends Phaser.Scene {
             }
 
         });
-
-
-       
 
         const randIndx = Math.floor ( Math.random() * tmpArr.length );
 
@@ -1319,19 +1313,12 @@ class SceneA extends Phaser.Scene {
 
         this.gamePhase = 0;
 
-        this.showPrompt ('Initializing..', 40, 0, true );
-
-        this.time.delayedCall ( 1000, function () {
-
-            this.removePrompt();
+        this.removePrompt();
             
-            this.createGamePieces ('self', this.players['self'].chip, true, true);
+        this.createGamePieces ('self', this.players['self'].chip, true, true);
 
-        }, [], this);
+        this.time.delayedCall ( 300, this.showControls, [], this );
 
-        this.time.delayedCall ( 1200, this.showControls, [], this );
-
-      
     }
 
     startCommencement () 
@@ -1360,7 +1347,7 @@ class SceneA extends Phaser.Scene {
         //show prompt..
         this.time.delayedCall ( 800, () => {
 
-            this.replaceMainControls();
+            this.switchMainControls( 1 );
 
             this.showCommenceScreen ();
 
@@ -1392,7 +1379,7 @@ class SceneA extends Phaser.Scene {
 
         this.tweens.add ({
             targets : [img0, img2 ],
-            rotation : '+=0.5',
+            rotation : '+=1',
             duration : 1000,
             repeat : 3,
             ease : 'Cubic.easeIn'
@@ -1400,7 +1387,7 @@ class SceneA extends Phaser.Scene {
 
         this.tweens.add ({
             targets : img1,
-            rotation : '-=0.5',
+            rotation : '-=1',
             duration : 1000,
             repeat : 3,
             ease : 'Cubic.easeIn'
@@ -1470,7 +1457,26 @@ class SceneA extends Phaser.Scene {
         
     }
 
+    switchPieces () {
+
+        this.players ['self'].chip = this.players ['self'].chip == 0 ? 1 : 0;
+
+        this.players ['oppo'].chip = this.players ['self'].chip == 0 ? 1 : 0;
+
+        this.turn = this.players ['self'].chip == 0 ? 'self' : 'oppo';
+
+    }
     
+    revealPieces () {
+
+        this.piecesCont.iterate ( child => {
+            if ( !child.flippedUp ) child.flip();
+        });
+        this.capturedCont.last.iterate ( child => {
+            if ( !child.flippedUp ) child.flip();
+        });
+        
+    }
     //..
 
    
@@ -1505,7 +1511,7 @@ class SceneA extends Phaser.Scene {
 
     createEmojis () {
 
-        this.emojiContainer = this.add.container ( 0, -1080 );
+        this.emojiContainer = this.add.container ( 0, -1080 ).setDepth (999);
 
         let rct = this.add.rectangle ( 0, 0, 1920, 1080 ).setOrigin(0).setInteractive ();
 
@@ -1700,6 +1706,8 @@ class SceneA extends Phaser.Scene {
 
         this.gameOver = true;
 
+        this.revealPieces (); //optional..
+
         if ( winner != '' ) {
 
             this.players [ winner ].wins += 1;
@@ -1729,25 +1737,48 @@ class SceneA extends Phaser.Scene {
 
         this.showPrompt ('Game is restarting..', 36, 0, true );
 
-        this.anims.remove ('blink');
+        this.switchMainControls ( 0 );
 
-        for ( var i in this.gridArr ) {
-            this.gridArr [i].resident = 0;
-        }
+        this.pieceClicked = '';
 
-        this.circCont.each ( function (child) {
-            child.destroy();
+        //remove blinker if any..
+        this.blinkersCont.each ( child => {
+            child.destroy ();
+        });
+
+        //remove all pieces..
+        this.piecesCont.each ( child => {
+            child.destroy ();
+        });
+
+        this.capturedCont.last.each ( child => {
+            child.destroy ();
         });
         
+        for ( var i in this.gridData ) {
+           
+            this.gridData [i].resident = 0;
+
+            this.gridData [i].residentPiece = '';
+
+        }
+
+        for (var j in this.players ){
+
+            this.playerIndicatorsCont.getByName (j).reset ();
+
+            this.capturedCounter [j] = 0;
+        }
+
         this.time.delayedCall (1000, function () {
            
             this.removePrompt ();
            
             this.gameOver = false;
-            
-            this.shotHistory = [];
 
-            this.switchTurn ();
+            this.switchPieces ();
+
+            this.startPrep ();
             
         }, [], this);
 
@@ -2049,5 +2080,6 @@ class SceneA extends Phaser.Scene {
 
         this.scene.start ('Intro');
     }
+
     
 }

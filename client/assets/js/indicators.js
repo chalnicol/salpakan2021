@@ -56,7 +56,16 @@ class Indicator extends Phaser.GameObjects.Container {
 
     setTurn ( on = false ) {
 
-        this.last.setFrame ( on ? 2 : 3 );
+        this.last.setFrame ( !on ? 2 : 3 );
+    }
+
+    reset () 
+    {
+
+        this.getAt ( 3 ).setVisible (false);
+
+        this.getAt ( 4 ).setFrame (0);
+
     }
 
 }
