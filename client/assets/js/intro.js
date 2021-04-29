@@ -197,7 +197,7 @@ class Intro extends Phaser.Scene {
 
                         if ( this.menuPick < 2 ) {
 
-                            const tosend = { 'game' : this.menuPick, 'gameType' : i };
+                            const tosend = { 'game' : this.menuPick, 'gameType' : ( i - 1 )};
 
                             //console.log ( tosend );
 

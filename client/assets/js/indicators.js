@@ -20,7 +20,18 @@ class Indicator extends Phaser.GameObjects.Container {
 
         let state = this.scene.add.image ( 205, -15, 'inds', 0 ).setScale (0.9);
         
-        this.add ( [ img, name, wins, rev, state ] );
+
+        //...
+        var graphics = this.scene.add.graphics ();
+
+        graphics.fillStyle(0xffff00, 1);
+
+        graphics.fillCircleShape( new Phaser.Geom.Circle( -202, 0, 30 ));
+
+        graphics.closePath();
+
+
+        this.add ( [ img, name, wins, rev, state, graphics ] );
      
         scene.add.existing(this);
 
@@ -51,12 +62,12 @@ class Indicator extends Phaser.GameObjects.Container {
     }
 
     ready () {
-        this.last.setFrame ( 1 );
+        this.getAt(4).setFrame ( 1 );
     }
 
     setTurn ( on = false ) {
 
-        this.last.setFrame ( !on ? 2 : 3 );
+        this.getAt(4).setFrame ( !on ? 2 : 3 );
     }
 
     reset () 
@@ -68,4 +79,20 @@ class Indicator extends Phaser.GameObjects.Container {
 
     }
 
+    tick ( current, total ) {
+
+        
+        //const slice = total/360;
+
+        this.last.clear ();
+        
+        graphics.slice(-202, 0, 30, Phaser.Math.DegToRad(270), Phaser.Math.DegToRad(270 + ( current * total/360 )), true);
+
+        graphics.fillPath();
+
+        graphics.closePath();
+
+    }
+
+    
 }

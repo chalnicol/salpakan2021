@@ -250,7 +250,7 @@ io.on('connection', function(socket){
 			const gameRoomData  = {
 
 				'game' : 0,
-				'gameType' : 0,
+				'gameType' : data.gameType,
 				'turn' : playerPiece == 0 ? 'self' : 'oppo',
 				'players' : {
 					'self' : { 'username' : plyr.username, 'chip' : playerPiece }

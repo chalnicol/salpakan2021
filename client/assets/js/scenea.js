@@ -1337,7 +1337,30 @@ class SceneA extends Phaser.Scene {
             
         this.createGamePieces ('self', this.players['self'].chip, true, true);
 
-        this.time.delayedCall ( 300, this.showControls, [], this );
+        this.time.delayedCall ( 300, () => {
+
+            this.showControls ();
+
+            if ( this.gameData.game == 0 && this.gameData.gameType == 1 ) this.startPrepTimer ();
+
+        }, [], this );
+
+    }
+
+    startPrepTimer (){
+
+        var counter = 0;
+
+        this.prepTimer = this.time.addEvent ({
+            delay: 1000,
+            callback :  function ( ) {
+                
+                console.log ( counter );
+                counter++;
+            },
+            callbackScope : this,
+            repeat : 29
+        });
 
     }
 
