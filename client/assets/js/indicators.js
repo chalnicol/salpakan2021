@@ -1,6 +1,6 @@
 class Indicator extends Phaser.GameObjects.Container {
 
-    constructor(scene, x, y, id, username ) {
+    constructor(scene, x, y, id, username, withTimer = false ) {
 
         super( scene, x, y, [] );
 
@@ -9,6 +9,8 @@ class Indicator extends Phaser.GameObjects.Container {
         this.username = username;
 
         this.id = id;
+
+        this.timerIsOn = false;
 
         let img = this.scene.add.image ( 0, 0, 'plyrInd');
 
@@ -19,19 +21,21 @@ class Indicator extends Phaser.GameObjects.Container {
         let rev = this.scene.add.image ( 165, -15, 'inds', 4 ).setScale (0.9).setVisible (false);
 
         let state = this.scene.add.image ( 205, -15, 'inds', 0 ).setScale (0.9);
-        
 
-        //...
-        var graphics = this.scene.add.graphics ();
-
-        graphics.fillStyle(0xffff00, 1);
-
-        graphics.fillCircleShape( new Phaser.Geom.Circle( -202, 0, 30 ));
-
-        graphics.closePath();
+        this.add ( [ img, name, wins, rev, state]);
 
 
-        this.add ( [ img, name, wins, rev, state, graphics ] );
+        if ( withTimer ) {
+
+            var graphics = this.scene.add.graphics();
+
+            graphics.fillStyle(0xffff00, 1);
+
+            graphics.fillCircleShape( new Phaser.Geom.Circle( -202, 0, 30 ));
+
+            this.add ( graphics );
+
+        }
      
         scene.add.existing(this);
 
@@ -79,18 +83,24 @@ class Indicator extends Phaser.GameObjects.Container {
 
     }
 
-    tick ( current, total ) {
 
+    hideTimer () {
         
-        //const slice = total/360;
+        this.last.clear ();
+    
+    }
+
+    tick ( progress ) {
 
         this.last.clear ();
         
-        graphics.slice(-202, 0, 30, Phaser.Math.DegToRad(270), Phaser.Math.DegToRad(270 + ( current * total/360 )), true);
+        this.last.fillStyle(0xffff00, 0.8 );
 
-        graphics.fillPath();
+        this.last.slice(-202, 0, 30, Phaser.Math.DegToRad(270), Phaser.Math.DegToRad(270 + Math.floor ( 360 * progress ) ), true);
 
-        graphics.closePath();
+        this.last.fillPath();
+
+        //this.last.closePath();
 
     }
 

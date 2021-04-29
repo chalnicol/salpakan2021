@@ -29,6 +29,8 @@ class SceneA extends Phaser.Scene {
 
         this.soundOff = false;
 
+        this.timerIsTicking = false;
+
         this.gridData = [];
 
         this.pieceClicked = '';
@@ -458,7 +460,9 @@ class SceneA extends Phaser.Scene {
                     func : () => {
                         
                         this.showControls (false);
-    
+                        
+                        if ( this.timerIsTicking ) this.stopTimer ();
+
                         this.startCommencement ();
     
                     }
@@ -1081,6 +1085,8 @@ class SceneA extends Phaser.Scene {
 
         }
 
+        if ( this.timerIsTicking ) this.stopTimer ();
+
         //checkWinner...
         this.time.delayedCall ( 600, () => {
 
@@ -1203,6 +1209,8 @@ class SceneA extends Phaser.Scene {
             this.endGame ( this.turn);
 
         }else {
+
+            if ( this.gameData.game == 0 && this.gameData.gameType == 1 ) this.startTurnTimer ();
 
             if ( this.players [ this.turn ].isAI ) {
                 this.makeAI();
@@ -1349,44 +1357,88 @@ class SceneA extends Phaser.Scene {
 
     startPrepTimer (){
 
-        var counter = 0;
+        var prepTime = 5000; //ms
 
-        this.prepTimer = this.time.addEvent ({
-            delay: 1000,
-            callback :  function ( ) {
-                
-                console.log ( counter );
-                counter++;
-            },
-            callbackScope : this,
-            repeat : 29
-        });
+        this.timerIsTicking = true;
 
+        this.gameTimer = this.time.delayedCall ( prepTime, () => {
+            
+            this.stopTimer ();
+
+            this.startCommencement ();
+
+        }, [], this );
+
+    }
+
+    startTurnTimer () {
+
+        var turnTime = 5000; //ms
+
+        this.timerIsTicking = true;
+
+        this.gameTimer = this.time.delayedCall ( turnTime, () => {
+            
+            this.stopTimer();
+
+            if ( this.turn == 'self' ) this.selfCleanUp ();
+
+            this.switchTurn ();
+
+        }, [], this );
+
+        
+    }
+
+    stopTimer () {
+
+
+        this.timerIsTicking = false;
+
+        this.gameTimer.remove ();
+
+        this.playerIndicatorsCont.getByName ('self').hideTimer();
+
+        this.playerIndicatorsCont.getByName ('oppo').hideTimer();
+
+
+    }
+
+    selfCleanUp () {
+
+        if ( this.pieceClicked != '' ) {
+
+            this.piecesCont.getByName ( this.pieceClicked ).setPicked (false);
+
+            this.removeBlinkers ();
+
+            this.pieceClicked = '';
+        }
+
+        //deactive self pieces..
+        this.activatePieces ( 'self', false );
     }
 
     startCommencement () 
     {
         
-
-        //deactive self pieces..
-        this.activatePieces ( 'self', false );
+        this.selfCleanUp ();
 
         //create oppo pieces..
         this.createGamePieces ( 'oppo', this.players['oppo'].chip, false, false );
 
         //..
-
         if ( this.gameData.game == 0 ) {
             
             this.playerIndicatorsCont.getByName ('self').ready ();
 
             this.playerIndicatorsCont.getByName ('oppo').ready ();
+
         }else {
 
             //todo..
         }
         
-
         //show prompt..
         this.time.delayedCall ( 800, () => {
 
@@ -1473,6 +1525,7 @@ class SceneA extends Phaser.Scene {
     
         this.setTurnIndicator ( this.turn );
 
+        if ( this.gameData.game == 0 && this.gameData.gameType == 1 ) this.startTurnTimer ();
 
         if ( this.players [ this.turn ].isAI ) {
            
@@ -1539,7 +1592,7 @@ class SceneA extends Phaser.Scene {
 
             //let pInd = this.add.container ( sx + (counter * ( w+sp)), sy ).setName (i);
 
-            let pInd = new Indicator (this, sx + (counter * ( w+sp )), sy, i, this.players [i].username );
+            let pInd = new Indicator (this, sx + (counter * ( w+sp )), sy, i, this.players [i].username, this.gameData.gameType == 1 );
 
             this.playerIndicatorsCont.add ( pInd );
 
@@ -1705,6 +1758,9 @@ class SceneA extends Phaser.Scene {
     endGame ( winner ) {
 
         this.gameOver = true;
+
+        if ( this.timerIsTicking ) this.stopTimer ();
+
 
         this.revealPieces (); //optional..
 
@@ -2076,10 +2132,33 @@ class SceneA extends Phaser.Scene {
 
         socket.removeAllListeners();
 
+        if ( this.timerIsTicking ) this.stopTimer ();
+
         this.bgmusic.stop();
 
         this.scene.start ('Intro');
     }
 
-    
+    update ( time, delta ) {
+
+        if ( this.timerIsTicking ) {
+
+            const progress = this.gameTimer.getProgress();
+
+            if ( this.gamePhase == 0 ){
+            
+                this.playerIndicatorsCont.getByName ('self').tick ( progress );
+
+                this.playerIndicatorsCont.getByName ('oppo').tick ( progress );
+            
+            }else {
+
+                this.playerIndicatorsCont.getByName ( this.turn).tick ( progress );
+            }
+           
+            
+        }
+    }
+
+
 }
