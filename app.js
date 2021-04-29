@@ -38,7 +38,7 @@ class Player {
 
 		this.inviteId = '';
 
-		this.pieces = [];
+		//this.pieces = [];
 	}
 
 	reset () 
@@ -68,6 +68,8 @@ class GameRoom {
 		this.isClosed = false;
 		
 		this.gridData = [];
+
+		this.piecesData = {};
 
 		this.players = [];
 
@@ -519,8 +521,6 @@ io.on('connection', function(socket){
 
 		const plyr = playerList [ socket.id ];
 
-		plyr.pieces = data.pieces;
-
 		//..
 		const room = roomList [ plyr.roomId ];
 
@@ -528,7 +528,11 @@ io.on('connection', function(socket){
 
 			const truePost = plyr.roomIndex == 0 ? data.pieces [i].post : 71 - data.pieces [i].post;
 
-			room.gridData [ truePost ] = { resident : plyr.roomIndex, pieceRank : data.pieces [i].rank };
+			const strId = 'plyr' + plyr.roomIndex + '_' + i;
+
+			room.piecesData [strId]  = { id: strId, plyr : plyr.roomIndex, post : truePost, rank : data.pieces [i].rank };
+
+			room.gridData [ truePost ] = { resident : plyr.roomIndex, residentPiece : strId };
 
 		}
 
@@ -544,13 +548,18 @@ io.on('connection', function(socket){
 				
 				room.startGame();
 
-				const oppo =  playerList [ room.players [ i == 0 ? 1 : 0 ]];
-
 				let oppoPiecesArr = [];
 
-				for ( var j in oppo.pieces ) {
+				for ( var j in room.piecesData ) {
 
-					oppoPiecesArr.push ( { 'post' : 71 - oppo.pieces [j].post, 'rank' : oppo.pieces [j].rank  })
+					if ( room.piecesData[j].plyr != i ) {
+
+						const mirrorPost = i == 0 ? room.piecesData[j].post : 71 - room.piecesData[j].post;
+
+						oppoPiecesArr.push ( { 'post' : mirrorPost, 'rank' : room.piecesData[j].rank  });
+
+					}
+					
 				}
 
 				socketList [ room.players [i] ].emit ('commenceGame', { 'oppoPiece' : oppoPiecesArr });
@@ -597,7 +606,6 @@ io.on('connection', function(socket){
 
 			socketList [ oppoId ].emit ('oppoPlayerMove', { 'post' : 71 - data.gridPost });
 
-		
 			if ( !checkWinner() ) {
 
 				room.switchTurn ();
@@ -606,7 +614,7 @@ io.on('connection', function(socket){
 
 				room.endGame();
 			}
-			
+
 
 		}
 
@@ -704,10 +712,134 @@ function verifyMove ( socketId )
 
 }
 
-function checkWinner () 
+
+function getNearbyResidents ( pos, res ) 
 {
+	const r = Math.floor ( pos/9 ), c = pos % 9;
+
+	let counter = 0;
+
+	if ( c-1 >=0 ) {
+
+		const left = (r * 9) + (c - 1);
+
+		if ( this.gridData [ left ].resident == res ) counter += 1;
+
+	}
+
+	if ( c+1 < 9 ) {
+
+		const right = (r * 9) + (c + 1);
+
+		if ( this.gridData [ right ].resident == res ) counter += 1;
+	}
+
+	if ( r-1 >= 0 ) {
+
+		const top = ( (r-1) * 9) + c;
+
+		if ( this.gridData [ top ].resident == res ) counter += 1
+
+	}
+
+	if ( r+1 < 8  ) {
+
+		const bottom = ( (r+1) * 9) + c;
+
+		if ( this.gridData [ bottom ].resident == res ) counter += 1;
+		
+	}
+	
+	return counter;
+
+}
+
+function checkWinner ( roomId ) 
+{
+	const room = roomList [roomId];
+
+	for ( var i in room.piecesData ) {
+		
+		var piece = room.piecesData [i];
+
+		if ( piece.rank == 14 ) {
+
+			if ( piece.isCaptured ) {
+
+				return (piece.plyr == 0 ) ? 1 : 0;
+
+			}else {
+
+				const r =Math.floor ( piece.post/9 );
+
+				if ( ( piece.plyr == 0 && r == 0 ) || ( piece.plyr == 1 && r == 7 ) ) return piece.plyr;
+			}
+			
+
+		}
+	}
+
+	return -1;
+
+}
+
+function isFlagHome ( plyr ) 
+{
+
+	const flags = this.piecesCont.getAll ('rank', 14 );
+
+	for ( var i in flags ) {
+
+		if ( flags [i].player == plyr  && flags [i].isHome() ) return true;
+	}
+
 	return false;
 }
+
+function checkClash ( rankA, rankB )
+{
+
+	if ( rankA == 14 && rankB != 14 ) {  // A = Flag, B = Any except flag
+		return 2;
+	}
+	if ( rankB == 14 && rankA != 14 ) {  // B = Flag, A = Any except flag
+		return 1;
+	}
+	if ( rankA == 14 && rankB == 14 ) {  // A = Flag attacks B = Flag  -> winner : A
+		return 1;
+	}
+	if ( rankB == 14 && rankA == 14 ) {  // B = Flag attacks A = Flag  -> winner : B
+		return 2;
+	}
+	if ( rankA == 15 && rankB == 15 ) { // A = Spy, B = Spy -> no winner
+		return 0;
+	}
+	if ( rankA == 15 && rankB != 13 ) { // A = Spy, B != Private -> winner : A
+		return 1;
+	}
+	if ( rankB == 15 && rankA != 13 ) { // B = Spy, A != Private -> winner : B
+		return 2;
+	}
+	if ( rankA == 15 && rankB == 13 ) { // A = Spy, B == Private -> winner : B
+		return 2;
+	}
+	if ( rankB == 15 && rankA == 13 ) { // B = Spy, A == Private -> winner : A
+		return 1;
+	}
+	if ( rankA < rankB ) {
+		return 1;
+	}
+	if ( rankB < rankA ) {
+		return 2;
+	}
+	if ( rankB == rankA ) {
+		return 0;
+	}
+
+	return null;
+
+}
+
 
 function getPaired ( pairingId, playerId ) 
 {
