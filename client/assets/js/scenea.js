@@ -161,7 +161,55 @@ class SceneA extends Phaser.Scene {
     initSocketIO () 
     {
 
-        socket.on('showEmoji', ( data ) => { 
+        socket.on ('oppoPlayerMove', data => {
+
+            //console.log ( data );
+
+            this.removeBlinkers ();
+
+            this.makeTurn ('oppo', data.post );
+
+        });
+
+        socket.on ('oppoPieceClicked', data => {
+
+            if ( data.post != -1 ) {
+
+                this.piecesCont.getByName ( this.gridData [ data.piecePost ].residentPiece ).setPicked ();
+
+                this.pieceClicked = this.gridData [ data.piecePost ].residentPiece;
+
+                this.createBlinkers ( data.piecePost, 2, false );
+
+            }else {
+
+                this.piecesCont.getByName ( this.pieceClicked ).setPicked ( false );
+
+                this.pieceClicked = '';
+
+                this.removeBlinkers ();
+            }
+
+        });
+
+        socket.on ('playerIsReady', data => {
+           
+            this.playerIndicatorsCont.getByName (data.player).ready();
+        });
+        
+        socket.on ('commenceGame', data => {
+
+            //console.log (data);
+
+            //..create oppo pieces..todo..
+            this.createGamePieces ('oppo', true, data.oppoPiece );
+
+            //..
+            this.commenceAction ();
+
+        });
+
+        socket.on('showEmoji', data => { 
             
             this.time.delayedCall (500, () => {
 
@@ -189,13 +237,14 @@ class SceneA extends Phaser.Scene {
 
         });
 
-        socket.on('playerMove', (data) => {
+        socket.on('playerMove', data => {
             
             //console.log ( data );
 
             this.makeTurn ( data.col, data.turn );
 
         });
+
     }
 
     initPlayers () {
@@ -435,7 +484,7 @@ class SceneA extends Phaser.Scene {
                     desc : 'Preset Position',
                     func : () => {
     
-                        this.repositionPieces ('self', this.presets [ this.presetIndex] );
+                        this.repositionPieces ('self', this.presets [ this.presetIndex ] );
     
                         this.presetIndex += 1;
     
@@ -580,55 +629,75 @@ class SceneA extends Phaser.Scene {
 
     }
 
-    createGamePieces ( plyr, clr, flipped, activated ) {
+    createGamePiecesData () {
 
-        const w = 175, h = 98;
-
-        const postArr = this.generateRandomArr ();
-
-        const orderArr = this.generateRandomArr (21);
+        let piecesData = [];
 
         let counter = 0;
+
+        const postArr = this.generateRandomArr ();
 
         for ( var i = 0; i< this.gamePiecesData.length ; i++) {
 
             for ( var j = 0; j < this.gamePiecesData[i].count; j++) {
 
-                let post = (plyr == 'self') ? postArr[counter] + 45 : postArr[counter];
-
-                let base = plyr == 'self' ? 0 : 1;
-
-                const xp = this.gridData [ post ].x, yp = this.gridData [ post ].y;
-
-                const rnk = this.gamePiecesData [i].rank, rnkName = this.gamePiecesData [i].name;
-
-                const piece = new GamePiece ( this, 960, 540, w, h, plyr + counter, plyr, clr, base, post, rnk, rnkName, flipped, activated );
-
-                piece.on('pointerdown', () => {
-                    this.playSound ('clickb');
-                });
-                piece.on('pointerup', () => {
-                    this.pieceIsClicked ( piece );
+                piecesData.push ({
+                    post : postArr [ counter ],
+                    rank : i + 1
                 });
 
-                this.add.tween ({
-                    targets : piece,
-                    x : xp, y : yp,
-                    duration : 200,
-                    ease : 'Power3',
-                    delay : orderArr [counter] * 18
-                });
-                
-                this.gridData [ post ].resident = plyr == 'self' ? 1 : 2;
-                this.gridData [ post ].residentPiece = plyr + counter;
-                
                 counter++;
-
-                this.piecesCont.add ( piece );
-
             }
+
         }
 
+        return piecesData;
+        
+    }
+
+    createGamePieces ( plyr, flipped, piecesDataArr ) {
+
+        const clr = this.players [ plyr].chip;
+
+        const w = 175, h = 98;
+
+        const orderArr = this.generateRandomArr (21);
+
+        for ( let i in piecesDataArr ) {
+
+            let post = (plyr == 'self') ? piecesDataArr[i].post + 45 : piecesDataArr[i].post;
+
+            let base = plyr == 'self' ? 0 : 1;
+
+            const xp = this.gridData [ post ].x, yp = this.gridData [ post ].y;
+
+            const rnk = piecesDataArr[i].rank,
+            
+                  rnkname = this.gamePiecesData [ piecesDataArr[i].rank - 1 ].name;
+
+            const piece = new GamePiece ( this, 960, 540, w, h, plyr+i, plyr, clr, base, post, rnk, rnkname, flipped, plyr=='self'? true : false);
+
+            piece.on('pointerdown', () => {
+                this.playSound ('clickb');
+            });
+            piece.on('pointerup', () => {
+                this.pieceIsClicked ( piece );
+            });
+
+            this.add.tween ({
+                targets : piece,
+                x : xp, y : yp,
+                duration : 200,
+                ease : 'Power3',
+                delay : orderArr [i] * 18
+            });
+            
+            this.gridData [ post ].resident = plyr == 'self' ? 1 : 2;
+            this.gridData [ post ].residentPiece = plyr + i;
+
+            this.piecesCont.add ( piece );
+        }
+        
         this.playSound ('ending');
 
     }
@@ -743,6 +812,9 @@ class SceneA extends Phaser.Scene {
                     this.removeBlinkers ();
 
                     this.makeTurn ( this.turn, blinkb.post );
+
+                    if ( this.gameData.game == 1 ) socket.emit ('playerMove', { gridPost : blinkb.post });
+
                     
                 }); 
 
@@ -843,7 +915,6 @@ class SceneA extends Phaser.Scene {
             this.createBlinkers ( piece.post, 1 );
 
             
-        
         }else {
 
             piece.setPicked ( false );
@@ -851,8 +922,14 @@ class SceneA extends Phaser.Scene {
             this.pieceClicked = '';
 
             this.removeBlinkers ();
+
         }
 
+        if ( this.gameData.game == 1 ) {
+
+            socket.emit ('playerClick', { post : this.pieceClicked != '' ? piece.post : -1 });
+
+        }
         
 
     }
@@ -1213,9 +1290,13 @@ class SceneA extends Phaser.Scene {
             if ( this.gameData.game == 0 && this.gameData.gameType == 1 ) this.startTurnTimer ();
 
             if ( this.players [ this.turn ].isAI ) {
+
                 this.makeAI();
+
             }else {
-                this.activatePieces ( this.turn );
+
+                if ( this.turn == 'self' ) this.activatePieces ('self');
+
             }
         }
        
@@ -1343,7 +1424,7 @@ class SceneA extends Phaser.Scene {
 
         this.removePrompt();
             
-        this.createGamePieces ('self', this.players['self'].chip, true, true);
+        this.createGamePieces ('self', true, this.createGamePiecesData() );
 
         this.time.delayedCall ( 300, () => {
 
@@ -1415,6 +1496,12 @@ class SceneA extends Phaser.Scene {
             this.pieceClicked = '';
         }
 
+        //deactive main btns..
+        for ( var i = 0; i < 3; i++ ) {
+
+            this.controlBtnsCont.getByName ('mainBtn' + i ).setBtnEnabled (false);
+        }
+
         //deactive self pieces..
         this.activatePieces ( 'self', false );
     }
@@ -1424,22 +1511,38 @@ class SceneA extends Phaser.Scene {
         
         this.selfCleanUp ();
 
-        //create oppo pieces..
-        this.createGamePieces ( 'oppo', this.players['oppo'].chip, false, false );
-
         //..
         if ( this.gameData.game == 0 ) {
             
-            this.playerIndicatorsCont.getByName ('self').ready ();
+            //create oppo pieces..
+            this.createGamePieces ( 'oppo', false, this.createGamePiecesData() );
 
-            this.playerIndicatorsCont.getByName ('oppo').ready ();
-
+            this.commenceAction ();
+            
         }else {
 
-            //todo..
+            let arr = [];
+
+            this.piecesCont.iterate ( child  => {
+
+                if ( child.player == 'self') arr.push ({ 'post' : child.post, 'rank' : child.rank });
+
+            });
+
+            socket.emit ('playerReady', { pieces : arr });
+           
         }
         
-        //show prompt..
+      
+
+    }
+
+    commenceAction () {
+
+        this.playerIndicatorsCont.getByName ('self').ready ();
+
+        this.playerIndicatorsCont.getByName ('oppo').ready ();
+
         this.time.delayedCall ( 800, () => {
 
             this.switchMainControls( 1 );
@@ -1447,7 +1550,6 @@ class SceneA extends Phaser.Scene {
             this.showCommenceScreen ();
 
         }, [], this);
-        
 
     }
 
@@ -1533,7 +1635,7 @@ class SceneA extends Phaser.Scene {
 
         }else {
 
-            this.activatePieces ( this.turn );
+            if ( this.turn == 'self' ) this.activatePieces ('self');
         }
 
     }

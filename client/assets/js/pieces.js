@@ -18,9 +18,9 @@ class GamePiece extends Phaser.GameObjects.Container {
         
         this.pieceClr = pieceClr;
 
-        this.rank = rank;
-
         this.flippedUp = flippedUp;
+
+        this.rank = rank;
 
         //this.isCaptured = false;
 

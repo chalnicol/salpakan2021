@@ -83,7 +83,6 @@ class Indicator extends Phaser.GameObjects.Container {
 
     }
 
-
     hideTimer () {
         
         this.last.clear ();

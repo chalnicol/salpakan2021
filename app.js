@@ -38,6 +38,7 @@ class Player {
 
 		this.inviteId = '';
 
+		this.pieces = [];
 	}
 
 	reset () 
@@ -66,25 +67,102 @@ class GameRoom {
 
 		this.isClosed = false;
 		
-		this.gridArr = [];
+		this.gridData = [];
 
 		this.players = [];
 
 		this.isGameOn = false;
 
+		this.readyCount = 0;
+
+		this.commencedCount = 0;
+
 		this.toRematch = 0;
+
+		this.turnTime = 10000; //ms
+
+		this.prepTime = 10000; //ms
+
+		this.prevTurn = 0;
+
+		this.timerCounter = 0;
+
+		this.postOrigin = -1;
+		
+		this.postDest = -1;
+
+		//
+		
 
 	}
 
 	initGame () {
 
+		this.gridData = [];
+
+		for ( let i = 0; i < 72; i++ ) {
+
+			this.gridData.push ({ resident : 0, pieceRank : -1 });
+
+		}
+
+		this.startPrep ();
+
+	}
+
+	startGame () {
+
 		this.isGameOn = true;
 
-		this.gridArr = [];
+	}
 
-		for ( let i = 0; i < 42; i++ ) {
-			this.gridArr.push (0);
-		}
+	startPrep () {
+
+		if ( this.gameType == 1 ) this.starTimer ( this.prepTime );
+
+	}
+
+	startTurn () {
+		
+		this.timerCounter = 0;
+
+		if ( this.gameType == 1 ) this.starTimer ( this.turnTime, 1 );
+
+	}
+
+	starTimer ( time, phase = 0 ) {
+
+		this.timeIsTicking = true;
+
+		this.timer = setInterval ( 1000, () => {
+
+			//if ( this.isGamePaused ) return;
+			
+			this.timerCounter += 1;
+
+			console.log ( this.timerCounter );
+
+			if ( this.timerCounter >= time ) {
+
+				if ( phase == 0 ) {
+					this.startCommencement();
+				}else {
+					this.switchTurn ();
+				}
+
+				this.stopTimer();
+			}
+
+		});
+
+
+	}
+
+	stopTimer () {
+
+		this.timeIsTicking = false;
+
+		clearInterval ( this.timer );
 
 	}
 
@@ -98,17 +176,28 @@ class GameRoom {
 		this.turn = this.turn == 1 ? 0 : 1;
 	}
 
-	restartGame () {
+	switchPieces () {
 
-		this.toRematch = 0;
+		this.prevTurn = this.prevTurn == 0 ? 1 : 0;
 
-		this.switchTurn ();
-
-		this.initGame ();
+		this.turn = this.prevTurn;
 
 	}
 
 
+	restartGame () {
+
+		this.toRematch = 0;
+
+		this.commencedCount = 0;
+
+		this.readyCount = 0;
+
+		this.switchPieces ();
+
+		this.initGame ();
+
+	}
 
 }
 
@@ -425,7 +514,76 @@ io.on('connection', function(socket){
 
 	});
 
-	socket.on("playerMove", ( data ) => {
+	
+	socket.on("playerReady", ( data ) => {
+
+		const plyr = playerList [ socket.id ];
+
+		plyr.pieces = data.pieces;
+
+		//..
+		const room = roomList [ plyr.roomId ];
+
+		for ( var i in data.pieces ) {
+
+			const truePost = plyr.roomIndex == 0 ? data.pieces [i].post : 71 - data.pieces [i].post;
+
+			room.gridData [ truePost ] = { resident : plyr.roomIndex, pieceRank : data.pieces [i].rank };
+
+		}
+
+		room.readyCount += 1;
+
+		for ( var i in room.players ) {
+
+			if ( room.readyCount < 2 ) {	
+
+				socketList [ room.players [i] ].emit ('playerIsReady', { player : room.players [i] == socket.id ? 'self' : 'oppo' });
+
+			}else {
+				
+				room.startGame();
+
+				const oppo =  playerList [ room.players [ i == 0 ? 1 : 0 ]];
+
+				let oppoPiecesArr = [];
+
+				for ( var j in oppo.pieces ) {
+
+					oppoPiecesArr.push ( { 'post' : 71 - oppo.pieces [j].post, 'rank' : oppo.pieces [j].rank  })
+				}
+
+				socketList [ room.players [i] ].emit ('commenceGame', { 'oppoPiece' : oppoPiecesArr });
+	
+			}
+
+		}
+		
+	});
+
+	socket.on("playerClick", data => {
+
+		if ( verifyMove (socket.id) ) {
+
+			const plyr = playerList [ socket.id ];
+
+			const room = roomList [ plyr.roomId ];
+
+			if ( data.post != -1 ) {
+				room.postOrigin = (plyr.roomIndex == 0 ) ? data.post : 71 - data.post;
+			}else {
+				room.postOrigin = -1;
+			}
+
+			const oppoId = room.players [ plyr.roomIndex == 0 ? 1 : 0 ];
+
+			socketList [ oppoId ].emit ('oppoPieceClicked', { 'piecePost' : 71 - data.post });
+
+		}
+
+	});
+
+	socket.on("playerMove", data => {
 
 		if ( verifyMove (socket.id) ) {
 
@@ -433,31 +591,22 @@ io.on('connection', function(socket){
 
 			var room = roomList [ plyr.roomId ];
 
-			const depth = getDepth ( room.id, data.col );
+			room.postDest = ( plyr.roomIndex == 0 ) ? data.gridPost : 71 - data.gridPost;
 
-			if ( depth != null ) {
+			const oppoId = room.players [ plyr.roomIndex == 0 ? 1 : 0 ];
 
-				for ( var i in room.players ) {
+			socketList [ oppoId ].emit ('oppoPlayerMove', { 'post' : 71 - data.gridPost });
 
-					const turn = room.turn == i ? 'self' : 'oppo';
+		
+			if ( !checkWinner() ) {
 
-					socketList [ room.players [i] ].emit ( 'playerMove', { 'col' : data.col, turn : turn  });
-				}
+				room.switchTurn ();
 
-				room.gridArr [depth] = plyr.roomIndex + 1;
-				
-				var isWinner = checkLines ( room.id, depth, plyr.roomIndex + 1 );
+			}else {
 
-				if ( !isWinner ) {
-
-					room.switchTurn ();
-
-				}else {
-					
-					room.endGame ();
-				}
-				
+				room.endGame();
 			}
+			
 
 		}
 
@@ -555,131 +704,9 @@ function verifyMove ( socketId )
 
 }
 
-function getDepth ( roomId, col ) 
+function checkWinner () 
 {
-
-	var gridArr = roomList [ roomId ].gridArr;
-
-	for ( var i = 0; i < 6; i++ ) {
-
-		let cc = (( 5-i ) * 7) + col;
-
-		if ( gridArr [ cc ] == 0 ) return cc;
-
-	}
-
-	return null;
-
-}
-
-function checkLines ( roomId, depth, clrId ) 
-{
-
-	var room = roomList [roomId];
-
-	const r = Math.floor ( depth/7 ), c = depth % 7;
-
-	//horizontal..
-	for ( var i = 0; i < 4; i++ ) {
-
-		let sPoint = (r * 7) + i;
-
-		let countera = 0;
-
-		for ( var j = 0; j < 4; j++ ) {
-
-			if ( room.gridArr [ sPoint + j ] == clrId ) countera += 1;
-
-		}
-
-		if ( countera > 3 ) return true;
-
-	}
-
-	//vertical..
-	for ( var i = 0; i < 3; i++ ) {
-
-		let sPoint = (i * 7) + c;
-
-		let counterb = 0;
-
-		for ( var j = 0; j < 4; j++ ) {
-
-			if ( room.gridArr [ sPoint + (j*7) ] == clrId ) counterb += 1;
-
-		}
-
-		if ( counterb > 3 ) return true;
-
-	}
-
-	//forward slash..
-	let tr = r, tc = c;
-
-	while ( tr < 5 && tc > 0 ) {
-		tr += 1;
-		tc -= 1;
-	}
-
-	do {
-
-		if ( (tr - 3) >= 0 && ( tc + 3) <= 6 ) {
-
-			let counterc = 0;
-		
-			for ( let i = 0; i < 4; i++ ) {
-
-				let ttr = tr - i, ttc = tc + i;
-
-				let pointa = (ttr * 7) + ttc;
-
-				if ( room.gridArr [ pointa ] == clrId ) counterc += 1;
-			}
-
-			if ( counterc > 3 ) return true;
-
-			tr -= 1;
-			tc += 1;
-
-		}       
-
-	} while ( (tr - 3) >= 0 && ( tc + 3) <= 6 );
-
-
-	//backward slash..
-	let tbr = r, tbc = c;
-
-	while ( tbr > 0 && tbc > 0 ) {
-		tbr -= 1;
-		tbc -= 1;
-	}
-	
-	do {
-
-		if ( (tbr + 3) <=5 && ( tbc + 3) <= 6 ) {
-
-			let counterd = 0;
-		
-			for ( let i = 0; i < 4; i++ ) {
-
-				let ttr = tbr + i, ttc = tbc + i;
-
-				let pointa = (ttr * 7) + ttc;
-
-				if ( room.gridArr [ pointa ] == clrId ) counterd+= 1;
-			}
-
-			if ( counterd > 3 ) return true;
-
-			tbr += 1;
-			tbc += 1;
-
-		}       
-
-	} while ( (tbr + 3) <=5 && ( tbc + 3) <= 6 );
-
 	return false;
-
 }
 
 function getPaired ( pairingId, playerId ) 
@@ -774,7 +801,7 @@ function initGame ( roomid )
 
 	}
 
-	room.initGame();
+	room.initGame ();
 
 }
 
