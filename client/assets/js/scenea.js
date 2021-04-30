@@ -90,7 +90,7 @@ class SceneA extends Phaser.Scene {
 
             this.add.rectangle ( xp, yp, sw, sh, clr, 0.9 ).setStrokeStyle ( 5, 0xfefefe );
 
-            //this.add.text ( xp + 60, yp - 30, i, { color:'#fff', fontFamily:'Oswald', fontSize: 20 }).setOrigin(0.5);
+            this.add.text ( xp + 60, yp - 30, i, { color:'#fff', fontFamily:'Oswald', fontSize: 20 }).setOrigin(0.5);
 
             this.gridData.push ( { 'x': xp, 'y': yp, 'resident' : 0, 'residentPiece' : '' });
         
@@ -173,7 +173,9 @@ class SceneA extends Phaser.Scene {
 
         socket.on ('oppoPieceClicked', data => {
 
-            if ( data.post != -1 ) {
+            //console.log ( data );
+
+            if ( data.piecePost != -1 ) {
 
                 this.piecesCont.getByName ( this.gridData [ data.piecePost ].residentPiece ).setPicked ();
 
@@ -183,11 +185,16 @@ class SceneA extends Phaser.Scene {
 
             }else {
 
-                this.piecesCont.getByName ( this.pieceClicked ).setPicked ( false );
+                if ( this.pieceClicked != '' ) {
 
-                this.pieceClicked = '';
+                    this.piecesCont.getByName ( this.pieceClicked ).setPicked ( false );
 
-                this.removeBlinkers ();
+                    this.pieceClicked = '';
+
+                    this.removeBlinkers ();
+
+                }
+                
             }
 
         });
@@ -198,8 +205,6 @@ class SceneA extends Phaser.Scene {
         });
         
         socket.on ('commenceGame', data => {
-
-            //console.log (data);
 
             //..create oppo pieces..todo..
             this.createGamePieces ('oppo', true, data.oppoPiece );
@@ -898,7 +903,7 @@ class SceneA extends Phaser.Scene {
         if ( this.pieceClicked != piece.id ) {
 
 
-            if ( this.pieceClicked != '') {
+            if ( this.pieceClicked != '' ) {
 
                 const prevPiece = this.piecesCont.getByName ( this.pieceClicked );
 
@@ -914,7 +919,9 @@ class SceneA extends Phaser.Scene {
 
             this.createBlinkers ( piece.post, 1 );
 
-            
+            socket.emit ('playerClick', { post : piece.post});
+
+
         }else {
 
             piece.setPicked ( false );
@@ -923,13 +930,10 @@ class SceneA extends Phaser.Scene {
 
             this.removeBlinkers ();
 
-        }
-
-        if ( this.gameData.game == 1 ) {
-
-            socket.emit ('playerClick', { post : this.pieceClicked != '' ? piece.post : -1 });
+            socket.emit ('playerClick', { post : -1 });
 
         }
+
         
 
     }

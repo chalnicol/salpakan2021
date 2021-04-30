@@ -20,6 +20,34 @@ var roomList = {};
 var inviteList = {};
 
 
+class Piece {
+
+	constructor ( id, player, post, rank ) {
+
+		this.id = id;
+
+		this.post = post;
+
+		this.rank = rank;
+
+		this.player = player;
+
+		this.isCaptured = false;
+
+	}
+
+	isHome () {
+
+		const r = Math.floor ( this.post/9 );
+
+		//console.log ( 'row', r );
+
+		return ( this.player == 0 && r == 0 ) || ( this.player == 1 && r == 7 );
+
+	}
+
+}
+
 class Player {
 
 	constructor (id, username) {
@@ -69,15 +97,13 @@ class GameRoom {
 		
 		this.gridData = [];
 
-		this.piecesData = {};
+		this.pieces = {};
 
 		this.players = [];
 
 		this.isGameOn = false;
 
 		this.readyCount = 0;
-
-		this.commencedCount = 0;
 
 		this.toRematch = 0;
 
@@ -89,9 +115,7 @@ class GameRoom {
 
 		this.timerCounter = 0;
 
-		this.postOrigin = -1;
-		
-		this.postDest = -1;
+		this.pieceToMove = '';
 
 		//
 		
@@ -100,11 +124,13 @@ class GameRoom {
 
 	initGame () {
 
+		this.pieces = {};
+
 		this.gridData = [];
 
 		for ( let i = 0; i < 72; i++ ) {
 
-			this.gridData.push ({ resident : 0, pieceRank : -1 });
+			this.gridData.push ({ resident : 0, residentPiece : '' });
 
 		}
 
@@ -112,16 +138,17 @@ class GameRoom {
 
 	}
 
-	startGame () {
-
-		this.isGameOn = true;
-
-	}
-
 	startPrep () {
 
 		if ( this.gameType == 1 ) this.starTimer ( this.prepTime );
 
+	}
+
+	startGame () {
+
+		this.isGameOn = true;
+
+		this.startTurn ();
 	}
 
 	startTurn () {
@@ -175,7 +202,9 @@ class GameRoom {
 	}
 
 	switchTurn () {
+
 		this.turn = this.turn == 1 ? 0 : 1;
+
 	}
 
 	switchPieces () {
@@ -186,12 +215,9 @@ class GameRoom {
 
 	}
 
-
 	restartGame () {
 
 		this.toRematch = 0;
-
-		this.commencedCount = 0;
 
 		this.readyCount = 0;
 
@@ -336,8 +362,7 @@ io.on('connection', function(socket){
 			roomList [ roomId ] = newRoom;
 
 			plyr.roomId = roomId;
-
-			
+		
 			const gameRoomData  = {
 
 				'game' : 0,
@@ -515,7 +540,6 @@ io.on('connection', function(socket){
 	
 
 	});
-
 	
 	socket.on("playerReady", ( data ) => {
 
@@ -530,9 +554,9 @@ io.on('connection', function(socket){
 
 			const strId = 'plyr' + plyr.roomIndex + '_' + i;
 
-			room.piecesData [strId]  = { id: strId, plyr : plyr.roomIndex, post : truePost, rank : data.pieces [i].rank };
+			room.pieces [ strId ] = new Piece ( strId, plyr.roomIndex, truePost, data.pieces [i].rank );
 
-			room.gridData [ truePost ] = { resident : plyr.roomIndex, residentPiece : strId };
+			room.gridData [ truePost ] = { resident : plyr.roomIndex + 1, residentPiece : strId };
 
 		}
 
@@ -550,13 +574,13 @@ io.on('connection', function(socket){
 
 				let oppoPiecesArr = [];
 
-				for ( var j in room.piecesData ) {
+				for ( var j in room.pieces ) {
 
-					if ( room.piecesData[j].plyr != i ) {
+					if ( room.pieces [j].player != i ) {
 
-						const mirrorPost = i == 0 ? room.piecesData[j].post : 71 - room.piecesData[j].post;
+						const mirrorPost = i == 0 ? room.pieces[j].post : 71 - room.pieces[j].post;
 
-						oppoPiecesArr.push ( { 'post' : mirrorPost, 'rank' : room.piecesData[j].rank  });
+						oppoPiecesArr.push ( { 'post' : mirrorPost, 'rank' : room.pieces[j].rank  });
 
 					}
 					
@@ -579,14 +603,23 @@ io.on('connection', function(socket){
 			const room = roomList [ plyr.roomId ];
 
 			if ( data.post != -1 ) {
-				room.postOrigin = (plyr.roomIndex == 0 ) ? data.post : 71 - data.post;
+				
+				const clickedPost = ( plyr.roomIndex == 0 ) ? data.post : 71 - data.post;
+
+				room.pieceToMove = room.gridData [ clickedPost ].residentPiece;
+
 			}else {
-				room.postOrigin = -1;
+
+				room.pieceToMove = '';
 			}
+
+			//console.log ( 'tomove', room.pieceToMove );
 
 			const oppoId = room.players [ plyr.roomIndex == 0 ? 1 : 0 ];
 
-			socketList [ oppoId ].emit ('oppoPieceClicked', { 'piecePost' : 71 - data.post });
+			const post = data.post != -1 ? 71 - data.post : -1;
+
+			socketList [ oppoId ].emit ('oppoPieceClicked', { 'piecePost' : post });
 
 		}
 
@@ -596,25 +629,7 @@ io.on('connection', function(socket){
 
 		if ( verifyMove (socket.id) ) {
 
-			var plyr = playerList[socket.id];
-
-			var room = roomList [ plyr.roomId ];
-
-			room.postDest = ( plyr.roomIndex == 0 ) ? data.gridPost : 71 - data.gridPost;
-
-			const oppoId = room.players [ plyr.roomIndex == 0 ? 1 : 0 ];
-
-			socketList [ oppoId ].emit ('oppoPlayerMove', { 'post' : 71 - data.gridPost });
-
-			if ( !checkWinner() ) {
-
-				room.switchTurn ();
-
-			}else {
-
-				room.endGame();
-			}
-
+			makeTurn ( socket.id, data.gridPost );
 
 		}
 
@@ -712,9 +727,108 @@ function verifyMove ( socketId )
 
 }
 
+function makeTurn ( socketId, post ){
 
-function getNearbyResidents ( pos, res ) 
+	var plyr = playerList[ socketId ];
+
+	var room = roomList [ plyr.roomId ];
+
+	const destPost = (plyr.roomIndex == 1 ) ? 71 -post : post;
+
+	//
+	const oppoId = room.players [ plyr.roomIndex == 0 ? 1 : 0 ];
+
+	socketList [ oppoId ].emit ('oppoPlayerMove', { 'post' : 71 - post });
+
+	//analyze move..
+	const movingPiece = room.pieces [ room.pieceToMove ];
+
+	//get origin
+	const origin = movingPiece.post;
+
+	// empty origin..
+	room.gridData [ origin ] = { resident : 0, residentPiece : '' };
+
+	movingPiece.post = destPost;
+
+	//check if destination is empty.. 
+
+	if ( room.gridData [ destPost ].resident == 0 ) { 
+
+		room.gridData [ destPost ] = { resident : movingPiece.player + 1, residentPiece : movingPiece.id };
+		
+	}else {
+
+		const residingPiece = room.pieces [ room.gridData [ destPost ].residentPiece ];
+
+		const clashResult = checkClash ( movingPiece.rank, residingPiece.rank );
+
+		if ( clashResult == 1 ) { 
+
+			//winner movingPiece..
+			room.gridData [ destPost ].resident = movingPiece.player + 1;
+
+			room.gridData [ destPost ].residentPiece = movingPiece.id;
+			
+			residingPiece.isCaptured = true;
+
+			//console.log ('winner moving piece');
+
+		}else if ( clashResult == 2 ) {
+
+			movingPiece.isCaptured = true;
+			
+			//console.log ('winner residing piece');
+
+		}else {
+
+			room.gridData [ destPost ].resident = 0;
+
+			room.gridData [ destPost ].residentPiece = '';
+			
+			residingPiece.isCaptured = true;
+			
+			movingPiece.isCaptured = true
+
+			//console.log ('its a tie');
+		}
+
+	}
+
+	room.pieceToMove = '';
+
+	//check winner...
+	const winnerAfterMove = checkWinner( room.id );
+
+	if (  winnerAfterMove >= 0 ) {
+
+		room.endGame( winnerAfterMove );
+		
+		console.log ('=> winner', winnerAfterMove);
+
+	}else {
+
+		room.switchTurn();
+
+		//check winner after turn switch..
+		const winnerAfterTurn = checkWinner( room.id, true );
+		
+		if ( winnerAfterTurn >= 0 ) {
+			
+			room.endGame ( winnerAfterTurn );
+
+			console.log ('=> winner', winnerAfterTurn );
+		}
+
+	}
+
+}
+
+function getNearbyResidents ( roomId, pos, res ) 
 {
+
+	var room = roomList [ roomId ];
+
 	const r = Math.floor ( pos/9 ), c = pos % 9;
 
 	let counter = 0;
@@ -723,7 +837,7 @@ function getNearbyResidents ( pos, res )
 
 		const left = (r * 9) + (c - 1);
 
-		if ( this.gridData [ left ].resident == res ) counter += 1;
+		if ( room.gridData [ left ].resident == res ) counter += 1;
 
 	}
 
@@ -731,14 +845,14 @@ function getNearbyResidents ( pos, res )
 
 		const right = (r * 9) + (c + 1);
 
-		if ( this.gridData [ right ].resident == res ) counter += 1;
+		if ( room.gridData [ right ].resident == res ) counter += 1;
 	}
 
 	if ( r-1 >= 0 ) {
 
 		const top = ( (r-1) * 9) + c;
 
-		if ( this.gridData [ top ].resident == res ) counter += 1
+		if ( room.gridData [ top ].resident == res ) counter += 1
 
 	}
 
@@ -746,7 +860,7 @@ function getNearbyResidents ( pos, res )
 
 		const bottom = ( (r+1) * 9) + c;
 
-		if ( this.gridData [ bottom ].resident == res ) counter += 1;
+		if ( room.gridData [ bottom ].resident == res ) counter += 1;
 		
 	}
 	
@@ -754,46 +868,43 @@ function getNearbyResidents ( pos, res )
 
 }
 
-function checkWinner ( roomId ) 
+function checkWinner ( roomId, flagCheck = false ) 
 {
 	const room = roomList [roomId];
 
-	for ( var i in room.piecesData ) {
+	for ( var i in room.pieces ) {
 		
-		var piece = room.piecesData [i];
+		var piece = room.pieces [i];
 
 		if ( piece.rank == 14 ) {
 
-			if ( piece.isCaptured ) {
+			if ( !flagCheck ) {  //check flag captured or flag is home with no adjacent opps..
+ 
+				if ( piece.isCaptured ) {
 
-				return (piece.plyr == 0 ) ? 1 : 0;
+					return (piece.player == 0 ) ? 1 : 0;
+	
+				}else {
+	
+					const res = piece.player == 0 ? 2 : 1;
+					
+					//console.log ( piece.player, piece.isHome(), getNearbyResidents( roomId, piece.post, res ) );
 
-			}else {
+					if ( piece.isHome() &&  getNearbyResidents( roomId, piece.post, res ) == 0 ) return piece.player;
+					
+				}
 
-				const r =Math.floor ( piece.post/9 );
+			}else { // check flag is home only 
 
-				if ( ( piece.plyr == 0 && r == 0 ) || ( piece.plyr == 1 && r == 7 ) ) return piece.plyr;
+				if ( (room.turn == piece.player) && piece.isHome() ) return piece.player;
+
 			}
-			
-
+		
 		}
 	}
 
 	return -1;
 
-}
-
-function isFlagHome ( plyr ) 
-{
-
-	const flags = this.piecesCont.getAll ('rank', 14 );
-
-	for ( var i in flags ) {
-
-		if ( flags [i].player == plyr  && flags [i].isHome() ) return true;
-	}
-
-	return false;
 }
 
 function checkClash ( rankA, rankB )
@@ -839,7 +950,6 @@ function checkClash ( rankA, rankB )
 	return null;
 
 }
-
 
 function getPaired ( pairingId, playerId ) 
 {
