@@ -66,11 +66,20 @@ class Player {
 
 		this.inviteId = '';
 
+		this.isReady = false;
+
 		//this.pieces = [];
+	}
+
+	rematch () {
+
+		this.isReady = false;
+
 	}
 
 	reset () 
 	{
+
 		this.roomId = '';
 
 		this.roomIndex = 0;
@@ -103,13 +112,15 @@ class GameRoom {
 
 		this.isGameOn = false;
 
+		this.prepCount = 0;
+
 		this.readyCount = 0;
 
 		this.toRematch = 0;
 
-		this.turnTime = 10000; //ms
+		this.turnTime = 10;
 
-		this.prepTime = 10000; //ms
+		this.prepTime = 10;
 
 		this.prevTurn = 0;
 
@@ -118,7 +129,6 @@ class GameRoom {
 		this.pieceToMove = '';
 
 		//
-		
 
 	}
 
@@ -134,13 +144,52 @@ class GameRoom {
 
 		}
 
-		this.startPrep ();
-
 	}
 
 	startPrep () {
 
 		if ( this.gameType == 1 ) this.starTimer ( this.prepTime );
+
+	}
+
+	endPrep () {
+
+		for ( var i in this.players) {
+
+			if ( !playerList [ this.players[i] ].isReady ) {
+				
+				socketList [ this.players [i] ].emit ('endPrep');
+			}
+		}
+	}
+
+	startCommencement () {
+
+		if ( this.timeIsTicking ) this.stopTimer ();
+
+		for ( var i in this.players) {
+
+			let oppoPiecesArr = [];
+
+			for ( var j in this.pieces ) {
+
+				if ( this.pieces [j].player != i ) {
+
+					const mirrorPost = i == 0 ? this.pieces[j].post : 71 - this.pieces[j].post;
+
+					oppoPiecesArr.push ( { 'post' : mirrorPost, 'rank' : this.pieces[j].rank  });
+
+				}
+				
+			}
+
+			socketList [ this.players [i] ].emit ('commenceGame', { 'oppoPiece' : oppoPiecesArr });
+
+		}
+
+		// setTimeout ( ()=> {
+		// 	this.startGame ();
+		// }, 3000 );
 
 	}
 
@@ -163,7 +212,7 @@ class GameRoom {
 
 		this.timeIsTicking = true;
 
-		this.timer = setInterval ( 1000, () => {
+		this.myTimer = setInterval (() => {
 
 			//if ( this.isGamePaused ) return;
 			
@@ -174,15 +223,24 @@ class GameRoom {
 			if ( this.timerCounter >= time ) {
 
 				if ( phase == 0 ) {
-					this.startCommencement();
+					this.endPrep();
 				}else {
 					this.switchTurn ();
 				}
 
 				this.stopTimer();
+
+			}else {
+
+				for ( var i in this.players ) {
+
+					socketList [ this.players [i]].emit ( 'timerProgress',  { 'phase': phase, 'progress' : this.timerCounter/time  });
+
+				}
+
 			}
 
-		});
+		}, 1000 );
 
 
 	}
@@ -191,7 +249,7 @@ class GameRoom {
 
 		this.timeIsTicking = false;
 
-		clearInterval ( this.timer );
+		clearInterval ( this.myTimer );
 
 	}
 
@@ -541,9 +599,24 @@ io.on('connection', function(socket){
 
 	});
 	
+	socket.on('prepStarted', () => {
+
+		const plyr = playerList [ socket.id ];
+
+		//..
+		const room = roomList [ plyr.roomId ];
+
+		room.prepCount ++;
+
+		if ( room.prepCount >= 2 ) room.startPrep();
+
+	});
+
 	socket.on("playerReady", ( data ) => {
 
 		const plyr = playerList [ socket.id ];
+
+		plyr.isReady = true;
 
 		//..
 		const room = roomList [ plyr.roomId ];
@@ -562,36 +635,19 @@ io.on('connection', function(socket){
 
 		room.readyCount += 1;
 
-		for ( var i in room.players ) {
+		if ( room.readyCount < 2 ) {	
 
-			if ( room.readyCount < 2 ) {	
+			for ( var i in room.players ) {
 
 				socketList [ room.players [i] ].emit ('playerIsReady', { player : room.players [i] == socket.id ? 'self' : 'oppo' });
-
-			}else {
-				
-				room.startGame();
-
-				let oppoPiecesArr = [];
-
-				for ( var j in room.pieces ) {
-
-					if ( room.pieces [j].player != i ) {
-
-						const mirrorPost = i == 0 ? room.pieces[j].post : 71 - room.pieces[j].post;
-
-						oppoPiecesArr.push ( { 'post' : mirrorPost, 'rank' : room.pieces[j].rank  });
-
-					}
-					
-				}
-
-				socketList [ room.players [i] ].emit ('commenceGame', { 'oppoPiece' : oppoPiecesArr });
-	
 			}
 
+		}else {
+			
+			room.startCommencement();
+
 		}
-		
+
 	});
 
 	socket.on("playerClick", data => {
@@ -1022,7 +1078,7 @@ function initGame ( roomid )
 		var data = {
 
 			'game' : 1,
-			'gameType' : 0,
+			'gameType' : room.gameType,
 			'turn' : i == room.turn ? 'self' : 'oppo',
 			'players' : {
 				'self' : {

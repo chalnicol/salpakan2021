@@ -203,6 +203,31 @@ class SceneA extends Phaser.Scene {
            
             this.playerIndicatorsCont.getByName (data.player).ready();
         });
+
+        socket.on ('timerProgress', data => {
+
+            console.log ( data.progress );
+
+            if ( data.phase == 0 ) {
+
+                if ( !this.playerIndicatorsCont.getByName('self').isReady ) this.playerIndicatorsCont.getByName('self').tick ( data.progress );
+                
+                if ( !this.playerIndicatorsCont.getByName('oppo').isReady ) this.playerIndicatorsCont.getByName ('oppo').tick ( data.progress );
+
+            }else {
+
+                this.playerIndicatorsCont.getByName( this.turn ).tick ( data.progress );
+                
+            }
+
+        });
+
+        socket.on ('endPrep', () => {
+
+            
+
+            this.endPrep ();
+        });
         
         socket.on ('commenceGame', data => {
 
@@ -210,7 +235,7 @@ class SceneA extends Phaser.Scene {
             this.createGamePieces ('oppo', true, data.oppoPiece );
 
             //..
-            this.commenceAction ();
+            this.startCommencement ();
 
         });
 
@@ -517,7 +542,7 @@ class SceneA extends Phaser.Scene {
                         
                         if ( this.timerIsTicking ) this.stopTimer ();
 
-                        this.startCommencement ();
+                        this.endPrep ();
     
                     }
                 }
@@ -1291,17 +1316,8 @@ class SceneA extends Phaser.Scene {
 
         }else {
 
-            if ( this.gameData.game == 0 && this.gameData.gameType == 1 ) this.startTurnTimer ();
+            this.startTurn ();
 
-            if ( this.players [ this.turn ].isAI ) {
-
-                this.makeAI();
-
-            }else {
-
-                if ( this.turn == 'self' ) this.activatePieces ('self');
-
-            }
         }
        
 
@@ -1434,7 +1450,21 @@ class SceneA extends Phaser.Scene {
 
             this.showControls ();
 
-            if ( this.gameData.game == 0 && this.gameData.gameType == 1 ) this.startPrepTimer ();
+            console.log ( 'this is called asd', this.gameData.gameType );
+
+            if ( this.gameData.gameType == 1 ) {
+
+                this.playerIndicatorsCont.getByName ('self').showTimer();
+
+                this.playerIndicatorsCont.getByName ('oppo').showTimer();
+
+                if ( this.gameData.game == 0 ) {
+                    this.startPrepTimer ();
+                }else {
+                    socket.emit ('prepStarted');
+                }
+            } 
+           
 
         }, [], this );
 
@@ -1442,37 +1472,68 @@ class SceneA extends Phaser.Scene {
 
     startPrepTimer (){
 
-        var prepTime = 5000; //ms
+        var prepTime = 10;
 
         this.timerIsTicking = true;
 
-        this.gameTimer = this.time.delayedCall ( prepTime, () => {
-            
-            this.stopTimer ();
+        //..
+        var counter = 0;
 
-            this.startCommencement ();
+        this.gameTimer = this.time.addEvent ({
+            delay : 1000,
+            callback : function () {
+                
+                counter++;
 
-        }, [], this );
+                this.playerIndicatorsCont.getByName ('self').tick ( counter/prepTime );
+
+                this.playerIndicatorsCont.getByName ('oppo').tick ( counter/prepTime );
+
+                if ( counter >= prepTime ) {
+
+                    this.stopTimer();
+
+                    this.endPrep ();   
+                }
+            },
+            callbackScope : this,
+            repeat : prepTime - 1
+        })
+        
 
     }
 
     startTurnTimer () {
 
-        var turnTime = 5000; //ms
+        var turnTime = 10; 
 
         this.timerIsTicking = true;
 
-        this.gameTimer = this.time.delayedCall ( turnTime, () => {
-            
-            this.stopTimer();
+        var counter = 0;
 
-            if ( this.turn == 'self' ) this.selfCleanUp ();
+        this.playerIndicatorsCont.getByName (this.turn).showTimer ();
 
-            this.switchTurn ();
+        this.gameTimer = this.time.addEvent ({
+            delay : 1000,
+            callback : function () {
+                
+                counter++;
 
-        }, [], this );
+                this.playerIndicatorsCont.getByName (this.turn).tick ( counter/turnTime );
 
-        
+                if ( counter >= turnTime ) {
+                    
+                    this.stopTimer();
+
+                    if ( this.turn == 'self' ) this.selfCleanUp ();
+
+                    this.switchTurn ();
+                }
+            },
+            callbackScope : this,
+            repeat : turnTime - 1
+        })
+ 
     }
 
     stopTimer () {
@@ -1482,9 +1543,9 @@ class SceneA extends Phaser.Scene {
 
         this.gameTimer.remove ();
 
-        this.playerIndicatorsCont.getByName ('self').hideTimer();
+        this.playerIndicatorsCont.getByName ('self').showTimer( false );
 
-        this.playerIndicatorsCont.getByName ('oppo').hideTimer();
+        this.playerIndicatorsCont.getByName ('oppo').showTimer( false );
 
 
     }
@@ -1510,7 +1571,7 @@ class SceneA extends Phaser.Scene {
         this.activatePieces ( 'self', false );
     }
 
-    startCommencement () 
+    endPrep () 
     {
         
         this.selfCleanUp ();
@@ -1521,7 +1582,7 @@ class SceneA extends Phaser.Scene {
             //create oppo pieces..
             this.createGamePieces ( 'oppo', false, this.createGamePiecesData() );
 
-            this.commenceAction ();
+            this.startCommencement ();
             
         }else {
 
@@ -1536,16 +1597,16 @@ class SceneA extends Phaser.Scene {
             socket.emit ('playerReady', { pieces : arr });
            
         }
-        
-      
 
     }
 
-    commenceAction () {
+    startCommencement () {
 
-        this.playerIndicatorsCont.getByName ('self').ready ();
+        console.log ( 'this is called' );
 
-        this.playerIndicatorsCont.getByName ('oppo').ready ();
+        if ( !this.playerIndicatorsCont.getByName ('self').isReady ) this.playerIndicatorsCont.getByName ('self').ready ();
+
+        if ( !this.playerIndicatorsCont.getByName ('oppo').isReady ) this.playerIndicatorsCont.getByName ('oppo').ready ();
 
         this.time.delayedCall ( 800, () => {
 
@@ -1604,17 +1665,19 @@ class SceneA extends Phaser.Scene {
 
                 counter += 1;
 
+
                 commence.text = ( 3 - counter );
 
                 this.playSound ( (counter >= 3) ? 'bell' : 'beep' );
 
                 if ( counter >= 3 ) {
-                    
-                    this.startGame ();
 
                     this.commenceCont.destroy();
 
+                    this.startGame ();
+
                 }
+
             },
             callbackScope : this,
             repeat : 2
@@ -1631,11 +1694,24 @@ class SceneA extends Phaser.Scene {
     
         this.setTurnIndicator ( this.turn );
 
-        if ( this.gameData.game == 0 && this.gameData.gameType == 1 ) this.startTurnTimer ();
+        this.startTurn ( 1000 );
+
+    }
+
+    startTurn ( delay = 500) {
+
+
+        if ( this.gameData.gameType == 1 ) {
+            
+            this.playerIndicatorsCont.getByName (this.turn).showTimer ();
+
+            if ( this.gameData.game == 0  ) this.startTurnTimer ();
+
+        }
 
         if ( this.players [ this.turn ].isAI ) {
            
-            this.time.delayedCall ( 1000, () => this.makeAI(), [], this);
+            this.time.delayedCall ( delay, () => this.makeAI(), [], this);
 
         }else {
 
@@ -1681,7 +1757,6 @@ class SceneA extends Phaser.Scene {
     }
     //..
 
-   
     createPlayersIndicator () 
     {
 
@@ -1848,7 +1923,6 @@ class SceneA extends Phaser.Scene {
         }, [], this );
 
     }
-
 
     setTurnIndicator  ( turn ) 
     {
@@ -2245,26 +2319,26 @@ class SceneA extends Phaser.Scene {
         this.scene.start ('Intro');
     }
 
-    update ( time, delta ) {
+    // update ( time, delta ) {
 
-        if ( this.timerIsTicking ) {
+    //     if ( this.timerIsTicking ) {
 
-            const progress = this.gameTimer.getProgress();
+    //         const progress = this.gameTimer.getProgress();
 
-            if ( this.gamePhase == 0 ){
+    //         if ( this.gamePhase == 0 ){
             
-                this.playerIndicatorsCont.getByName ('self').tick ( progress );
+    //             this.playerIndicatorsCont.getByName ('self').tick ( progress );
 
-                this.playerIndicatorsCont.getByName ('oppo').tick ( progress );
+    //             this.playerIndicatorsCont.getByName ('oppo').tick ( progress );
             
-            }else {
+    //         }else {
 
-                this.playerIndicatorsCont.getByName ( this.turn).tick ( progress );
-            }
+    //             this.playerIndicatorsCont.getByName ( this.turn).tick ( progress );
+    //         }
            
             
-        }
-    }
+    //     }
+    // }
 
 
 }

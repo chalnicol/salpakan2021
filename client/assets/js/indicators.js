@@ -10,6 +10,8 @@ class Indicator extends Phaser.GameObjects.Container {
 
         this.id = id;
 
+        this.isReady = false;
+
         this.timerIsOn = false;
 
         let img = this.scene.add.image ( 0, 0, 'plyrInd');
@@ -66,7 +68,12 @@ class Indicator extends Phaser.GameObjects.Container {
     }
 
     ready () {
+
         this.getAt(4).setFrame ( 1 );
+
+        this.isReady = true;
+
+        this.showTimer (false);
     }
 
     setTurn ( on = false ) {
@@ -81,11 +88,26 @@ class Indicator extends Phaser.GameObjects.Container {
 
         this.getAt ( 4 ).setFrame (0);
 
+        this.isReady = false;
+
     }
 
-    hideTimer () {
+    showTimer ( show = true ) {
         
-        this.last.clear ();
+        if ( !show ) {
+
+            this.last.clear ();
+
+        }else {
+
+            this.last.clear ();
+
+            this.last.fillStyle(0xffff00, 1);
+
+            this.last.fillCircleShape( new Phaser.Geom.Circle( -202, 0, 30 ));
+
+        }
+        
     
     }
 
