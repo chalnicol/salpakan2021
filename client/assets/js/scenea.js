@@ -1665,7 +1665,6 @@ class SceneA extends Phaser.Scene {
 
                 counter += 1;
 
-
                 commence.text = ( 3 - counter );
 
                 this.playSound ( (counter >= 3) ? 'bell' : 'beep' );
@@ -1716,6 +1715,7 @@ class SceneA extends Phaser.Scene {
         }else {
 
             if ( this.turn == 'self' ) this.activatePieces ('self');
+
         }
 
     }
