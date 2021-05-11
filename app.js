@@ -116,6 +116,8 @@ class GameRoom {
 
 		this.readyCount = 0;
 
+		this.startCount = 0;
+
 		this.toRematch = 0;
 
 		this.turnTime = 10;
@@ -148,7 +150,7 @@ class GameRoom {
 
 	startPrep () {
 
-		if ( this.gameType == 1 ) this.starTimer ( this.prepTime );
+		if ( this.gameType == 1 ) this.starTimer ( this.prepTime, 0 );
 
 	}
 
@@ -158,9 +160,11 @@ class GameRoom {
 
 			if ( !playerList [ this.players[i] ].isReady ) {
 				
-				socketList [ this.players [i] ].emit ('endPrep');
+				socketList [ this.players [i] ].emit ('endPrepTime');
 			}
+
 		}
+
 	}
 
 	startCommencement () {
@@ -208,7 +212,7 @@ class GameRoom {
 
 	}
 
-	starTimer ( time, phase = 0 ) {
+	starTimer ( time, phase ) {
 
 		this.timeIsTicking = true;
 
@@ -218,9 +222,9 @@ class GameRoom {
 			
 			this.timerCounter += 1;
 
-			console.log ( this.timerCounter );
-
 			if ( this.timerCounter >= time ) {
+
+				this.stopTimer();
 
 				if ( phase == 0 ) {
 					this.endPrep();
@@ -228,15 +232,12 @@ class GameRoom {
 					this.switchTurn ();
 				}
 
-				this.stopTimer();
-
 			}else {
 
-				for ( var i in this.players ) {
-
-					socketList [ this.players [i]].emit ( 'timerProgress',  { 'phase': phase, 'progress' : this.timerCounter/time  });
-
-				}
+				//send timer progress..
+				//for ( var i in this.players ) {
+					//socketList [ this.players [i]].emit ( 'timerProgress',  { 'phase': phase, 'progress' : this.timerCounter/time  });
+				//}
 
 			}
 
@@ -257,11 +258,17 @@ class GameRoom {
 
 		this.isGameOn = false;
 
+		if ( this.timeIsTicking ) this.stopTimer();
 	}
 
 	switchTurn () {
 
+		if ( this.timeIsTicking ) this.stopTimer ();
+
 		this.turn = this.turn == 1 ? 0 : 1;
+
+
+		this.startTurn ();
 
 	}
 
@@ -276,6 +283,8 @@ class GameRoom {
 	restartGame () {
 
 		this.toRematch = 0;
+
+		this.startCount = 0;
 
 		this.readyCount = 0;
 
@@ -609,6 +618,19 @@ io.on('connection', function(socket){
 		room.prepCount ++;
 
 		if ( room.prepCount >= 2 ) room.startPrep();
+
+	});
+
+	socket.on('gameStarted', () => {
+
+		const plyr = playerList [ socket.id ];
+
+		//..
+		const room = roomList [ plyr.roomId ];
+
+		room.startCount ++;
+
+		if ( room.startCount >= 2 ) room.startGame ();
 
 	});
 

@@ -16,6 +16,8 @@ class Player {
 
         this.piecesData = [];
 
+        this.isReady = false;
+
     }
 
 }

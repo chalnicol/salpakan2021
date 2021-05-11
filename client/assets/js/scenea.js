@@ -201,32 +201,19 @@ class SceneA extends Phaser.Scene {
 
         socket.on ('playerIsReady', data => {
            
+            this.players [data.player].isReady = true;
+
             this.playerIndicatorsCont.getByName (data.player).ready();
-        });
-
-        socket.on ('timerProgress', data => {
-
-            console.log ( data.progress );
-
-            if ( data.phase == 0 ) {
-
-                if ( !this.playerIndicatorsCont.getByName('self').isReady ) this.playerIndicatorsCont.getByName('self').tick ( data.progress );
-                
-                if ( !this.playerIndicatorsCont.getByName('oppo').isReady ) this.playerIndicatorsCont.getByName ('oppo').tick ( data.progress );
-
-            }else {
-
-                this.playerIndicatorsCont.getByName( this.turn ).tick ( data.progress );
-                
-            }
 
         });
 
-        socket.on ('endPrep', () => {
+        socket.on ('endPrepTime', () => {
 
-            
+            //console.log ('hey end');
+            if ( this.timerIsTicking ) this.stopTimer ();
 
             this.endPrep ();
+            
         });
         
         socket.on ('commenceGame', data => {
@@ -258,6 +245,8 @@ class SceneA extends Phaser.Scene {
         socket.on('opponentLeft', () => {
             
             this.gameOver = true;
+
+            if ( this.timerIsTicking ) this.stopTimer();
 
             if ( this.isPrompted ) this.removePrompt();
 
@@ -318,7 +307,6 @@ class SceneA extends Phaser.Scene {
     }
     
     //..
-
     createCapturedContainer ()
     {
 
@@ -540,8 +528,6 @@ class SceneA extends Phaser.Scene {
                         
                         this.showControls (false);
                         
-                        if ( this.timerIsTicking ) this.stopTimer ();
-
                         this.endPrep ();
     
                     }
@@ -923,8 +909,6 @@ class SceneA extends Phaser.Scene {
 
     pieceIsClicked ( piece ) {
 
-        //if ( !this.controlsHidden ) this.showControls (false);
-
         if ( this.pieceClicked != piece.id ) {
 
 
@@ -958,8 +942,6 @@ class SceneA extends Phaser.Scene {
             socket.emit ('playerClick', { post : -1 });
 
         }
-
-        
 
     }
 
@@ -1456,13 +1438,10 @@ class SceneA extends Phaser.Scene {
 
                 this.playerIndicatorsCont.getByName ('self').showTimer();
 
-                this.playerIndicatorsCont.getByName ('oppo').showTimer();
+                this.startPrepTimer ();
 
-                if ( this.gameData.game == 0 ) {
-                    this.startPrepTimer ();
-                }else {
-                    socket.emit ('prepStarted');
-                }
+                if ( this.gameData.game == 1 ) socket.emit ('prepStarted');
+                
             } 
            
 
@@ -1480,25 +1459,30 @@ class SceneA extends Phaser.Scene {
         var counter = 0;
 
         this.gameTimer = this.time.addEvent ({
+
             delay : 1000,
             callback : function () {
                 
                 counter++;
 
-                this.playerIndicatorsCont.getByName ('self').tick ( counter/prepTime );
+                for ( var i in this.players) {
+                    
+                    if ( !this.players[i].isReady ) this.playerIndicatorsCont.getByName (i).tick ( counter/prepTime );
 
-                this.playerIndicatorsCont.getByName ('oppo').tick ( counter/prepTime );
-
+                }
+                
                 if ( counter >= prepTime ) {
 
                     this.stopTimer();
 
                     this.endPrep ();   
                 }
+
             },
             callbackScope : this,
             repeat : prepTime - 1
-        })
+
+        });
         
 
     }
@@ -1538,15 +1522,9 @@ class SceneA extends Phaser.Scene {
 
     stopTimer () {
 
-
         this.timerIsTicking = false;
 
         this.gameTimer.remove ();
-
-        this.playerIndicatorsCont.getByName ('self').showTimer( false );
-
-        this.playerIndicatorsCont.getByName ('oppo').showTimer( false );
-
 
     }
 
@@ -1573,28 +1551,30 @@ class SceneA extends Phaser.Scene {
 
     endPrep () 
     {
-        
+
         this.selfCleanUp ();
 
         //..
         if ( this.gameData.game == 0 ) {
-            
-            //create oppo pieces..
+
+            if ( this.timerIsTicking ) this.stopTimer ();
+
             this.createGamePieces ( 'oppo', false, this.createGamePiecesData() );
 
             this.startCommencement ();
             
         }else {
 
-            let arr = [];
+            if ( !this.players['self'].isReady ) {
 
-            this.piecesCont.iterate ( child  => {
+                let arr = [];
 
-                if ( child.player == 'self') arr.push ({ 'post' : child.post, 'rank' : child.rank });
+                this.piecesCont.iterate ( child  => {
+                    if ( child.player == 'self') arr.push ({ 'post' : child.post, 'rank' : child.rank });
+                });
 
-            });
-
-            socket.emit ('playerReady', { pieces : arr });
+                socket.emit ('playerReady', { pieces : arr });
+            }
            
         }
 
@@ -1604,9 +1584,14 @@ class SceneA extends Phaser.Scene {
 
         console.log ( 'this is called' );
 
-        if ( !this.playerIndicatorsCont.getByName ('self').isReady ) this.playerIndicatorsCont.getByName ('self').ready ();
+        if ( this.timerIsTicking ) this.stopTimer ();
 
-        if ( !this.playerIndicatorsCont.getByName ('oppo').isReady ) this.playerIndicatorsCont.getByName ('oppo').ready ();
+        for ( var i in this.players ) {
+
+            var inds = this.playerIndicatorsCont.getByName (i);
+
+            if ( !inds.isReady ) inds.ready ();
+        }
 
         this.time.delayedCall ( 800, () => {
 
@@ -1694,10 +1679,16 @@ class SceneA extends Phaser.Scene {
         this.setTurnIndicator ( this.turn );
 
         this.startTurn ( 1000 );
+        
+        if ( this.gameData.game == 1 ){
+
+            socket.emit ('gameStarted');
+            
+        }
 
     }
 
-    startTurn ( delay = 500) {
+    startTurn ( delay = 500 ) {
 
 
         if ( this.gameData.gameType == 1 ) {
@@ -1725,9 +1716,15 @@ class SceneA extends Phaser.Scene {
         this.piecesCont.iterate ( child => {
             if ( child.player == plyr ) {
                 if ( enabled ) {
+
                     child.setInteractive ();
+
                 }else {
+
                     child.removeInteractive ();
+
+                    child.setPicked (false);
+  
                 }
             }
         });

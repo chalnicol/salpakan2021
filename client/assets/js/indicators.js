@@ -10,7 +10,7 @@ class Indicator extends Phaser.GameObjects.Container {
 
         this.id = id;
 
-        this.isReady = false;
+        this.withTimer = withTimer;
 
         this.timerIsOn = false;
 
@@ -31,7 +31,7 @@ class Indicator extends Phaser.GameObjects.Container {
 
             var graphics = this.scene.add.graphics();
 
-            graphics.fillStyle(0xffff00, 1);
+            graphics.fillStyle(0x66ff66, 1);
 
             graphics.fillCircleShape( new Phaser.Geom.Circle( -202, 0, 30 ));
 
@@ -71,14 +71,16 @@ class Indicator extends Phaser.GameObjects.Container {
 
         this.getAt(4).setFrame ( 1 );
 
-        this.isReady = true;
-
-        this.showTimer (false);
+        if ( this.withTimer ) this.showTimer (false);
+        
     }
 
     setTurn ( on = false ) {
 
         this.getAt(4).setFrame ( !on ? 2 : 3 );
+
+        if ( this.withTimer) this.showTimer ( on );
+
     }
 
     reset () 
@@ -87,8 +89,6 @@ class Indicator extends Phaser.GameObjects.Container {
         this.getAt ( 3 ).setVisible (false);
 
         this.getAt ( 4 ).setFrame (0);
-
-        this.isReady = false;
 
     }
 
@@ -102,7 +102,7 @@ class Indicator extends Phaser.GameObjects.Container {
 
             this.last.clear ();
 
-            this.last.fillStyle(0xffff00, 1);
+            this.last.fillStyle(0x66ff66, 1);
 
             this.last.fillCircleShape( new Phaser.Geom.Circle( -202, 0, 30 ));
 
@@ -115,7 +115,17 @@ class Indicator extends Phaser.GameObjects.Container {
 
         this.last.clear ();
         
-        this.last.fillStyle(0xffff00, 0.8 );
+        var clr;
+
+        if ( progress < 0.3 ) {
+            clr = 0x66ff66;
+        }else if ( progress >= 0.3 && progress < 0.7 ) {
+            clr = 0xffff33;
+        }else {
+            clr = 0xff6666;
+        }
+
+        this.last.fillStyle( clr, 1 );
 
         this.last.slice(-202, 0, 30, Phaser.Math.DegToRad(270), Phaser.Math.DegToRad(270 + Math.floor ( 360 * progress ) ), true);
 
