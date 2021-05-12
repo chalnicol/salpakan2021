@@ -68,12 +68,15 @@ class Player {
 
 		this.isReady = false;
 
-		//this.pieces = [];
+		this.hasOfferedDraw = false;
+
 	}
 
 	rematch () {
 
 		this.isReady = false;
+
+		this.hasOfferedDraw = false;
 
 	}
 
@@ -94,7 +97,7 @@ class Player {
 
 class GameRoom {
 
-	constructor ( id, type ) {
+	constructor ( id, type, prepTime = 10, turnTime = 10 ) {
 		
 		this.id = id;
 
@@ -120,9 +123,9 @@ class GameRoom {
 
 		this.toRematch = 0;
 
-		this.turnTime = 10;
+		this.prepTime = prepTime;
 
-		this.prepTime = 10;
+		this.turnTime = turnTime;
 
 		this.prevTurn = 0;
 
@@ -171,7 +174,7 @@ class GameRoom {
 
 		if ( this.timeIsTicking ) this.stopTimer ();
 
-		for ( var i in this.players) {
+		for ( var i in this.players ) {
 
 			let oppoPiecesArr = [];
 
@@ -212,36 +215,43 @@ class GameRoom {
 
 	}
 
-	starTimer ( time, phase ) {
+	endTurn ()
+	{
+		for ( var i in this.players) {
+
+			socketList [ this.players [i] ].emit ('endTurn');
+		}
+
+		this.switchTurn ();
+
+	}
+
+	starTimer ( time, phase ) {  
 
 		this.timeIsTicking = true;
 
-		this.myTimer = setInterval (() => {
+		this.myTimer = setTimeout (() => {
 
 			//if ( this.isGamePaused ) return;
-			
-			this.timerCounter += 1;
 
-			if ( this.timerCounter >= time ) {
+			// this.timerCounter += 1;
 
-				this.stopTimer();
+			// if ( this.timerCounter >= time ) {
 
-				if ( phase == 0 ) {
-					this.endPrep();
-				}else {
-					this.switchTurn ();
-				}
+				
+			// }
 
+			this.stopTimer();
+
+			if ( phase == 0 ) {
+				this.endPrep();
 			}else {
-
-				//send timer progress..
-				//for ( var i in this.players ) {
-					//socketList [ this.players [i]].emit ( 'timerProgress',  { 'phase': phase, 'progress' : this.timerCounter/time  });
-				//}
-
+				this.endTurn ();
+				//this.switchTurn ();
+			
 			}
 
-		}, 1000 );
+		}, time*1000 );
 
 
 	}
@@ -254,19 +264,22 @@ class GameRoom {
 
 	}
 
-	endGame () {
+	endGame ( winner ) {
 
 		this.isGameOn = false;
 
 		if ( this.timeIsTicking ) this.stopTimer();
+
+
 	}
 
 	switchTurn () {
 
 		if ( this.timeIsTicking ) this.stopTimer ();
 
-		this.turn = this.turn == 1 ? 0 : 1;
+		this.pieceToMove = '';
 
+		this.turn = this.turn == 1 ? 0 : 1;
 
 		this.startTurn ();
 
@@ -281,6 +294,8 @@ class GameRoom {
 	}
 
 	restartGame () {
+
+		this.prepCount = 0;
 
 		this.toRematch = 0;
 
@@ -380,7 +395,6 @@ class Invite {
 
 }
 
-
 io.on('connection', function(socket){
 	
 	socketList[socket.id] = socket;
@@ -432,8 +446,11 @@ io.on('connection', function(socket){
 		
 			const gameRoomData  = {
 
-				'game' : 0,
-				'gameType' : data.gameType,
+				'game' : {
+					'multiplayer' : 0,
+					'timerOn' : data.gameType,
+					'time' : { 'prep' : newRoom.prepTime, 'turn' : newRoom.turnTime }
+				},
 				'turn' : playerPiece == 0 ? 'self' : 'oppo',
 				'players' : {
 					'self' : { 'username' : plyr.username, 'chip' : playerPiece }
@@ -723,18 +740,100 @@ io.on('connection', function(socket){
 
 		if ( room.toRematch > 1 ) {
 
-			room.restartGame ();
-
 			for ( var i in room.players ) {
+
+				playerList [ room.players [i] ].rematch ();
 
 				socketList [ room.players [i] ].emit ('restartGame');
 			}
 
-			//console.log ( '-> Game '+ room.id +' has been restarted.');
+			room.restartGame ();
+
 		}
 
 	});
+
+	socket.on("playerResigns", () => {
+		
+		var plyr = playerList [ socket.id ]
+		
+		var room = roomList [ plyr.roomId ];
+
+		for ( var i in room.players ) {
+
+			var winner = room.players[i] == socket.id ? 'oppo': 'self';
+
+			socketList [ room.players[i] ].emit ('playerHasResign', { 'winner': winner });
+
+		}
+
+		room.endGame ();
+
+	});
+
+	socket.on("playerReveals", () => {
+		
+		var plyr = playerList [ socket.id ]
 	
+		var room = roomList [ plyr.roomId ];
+
+		for ( var i in room.players ){
+
+			var plyrId = room.players[i] == socket.id ? 'self' : 'oppo';
+
+			var plyrInd = room.players[i] == socket.id ? 'oppo' : 'self';
+
+			var msg = room.players[i] == socket.id ? 'Your pieces are revealed to the opponent ' : 'Your opponent has revealed his/her pieces';
+
+			socketList [ room.players[i] ].emit ('playerHasRevealed', { 'plyr': plyrId, 'plyrInd': plyrInd, 'msg' : msg });
+
+		}
+
+	});
+
+	socket.on("playerOffersDraw", () => {
+		
+		var plyr = playerList [ socket.id ]
+		
+		if ( !plyr.hasOfferedDraw ) {
+
+			plyr.hasOfferedDraw = true;
+
+			var room = roomList [ plyr.roomId ];
+
+			var oppoId = room.players[ plyr.roomIndex == 0 ? 1 : 0 ];
+
+			socketList [ oppoId ].emit ('playerOfferedDraw');
+
+		}
+
+	});
+
+	socket.on("playerDrawResponse", data => {
+		
+		var plyr = playerList [ socket.id ]
+
+		var room = roomList [ plyr.roomId ];
+
+		if ( data.response == 1 ) {
+
+			for ( var i in room.players ) {
+				socketList [ room.players[i] ].emit ('gameIsADraw');
+			}
+
+			room.endGame ();
+
+		}else {
+
+			var oppoId = room.players[ plyr.roomIndex == 0 ? 1 : 0 ];
+
+			socketList [ oppoId ].emit ('playerDeclinesDraw');
+
+		}
+
+	});
+
+
 	socket.on("sendEmoji", ( data ) => {
 
 		var player = playerList [ socket.id ];
@@ -807,16 +906,22 @@ function verifyMove ( socketId )
 
 function makeTurn ( socketId, post ){
 
-	var plyr = playerList[ socketId ];
+	var plyr = playerList [ socketId ];
 
 	var room = roomList [ plyr.roomId ];
 
 	const destPost = (plyr.roomIndex == 1 ) ? 71 -post : post;
 
 	//
-	const oppoId = room.players [ plyr.roomIndex == 0 ? 1 : 0 ];
+	for ( var i in room.players ) {	
 
-	socketList [ oppoId ].emit ('oppoPlayerMove', { 'post' : 71 - post });
+		var plyrMoved = ( room.players [i] != socketId ) ? 'oppo' : 'self';
+
+		var postMove = ( room.players [i] != socketId ) ? 71 - post : post;
+
+		socketList [ room.players [i] ].emit ('playerHasMoved', {  plyr: plyrMoved, post : postMove });
+
+	}
 
 	//analyze move..
 	const movingPiece = room.pieces [ room.pieceToMove ];
@@ -830,7 +935,6 @@ function makeTurn ( socketId, post ){
 	movingPiece.post = destPost;
 
 	//check if destination is empty.. 
-
 	if ( room.gridData [ destPost ].resident == 0 ) { 
 
 		room.gridData [ destPost ] = { resident : movingPiece.player + 1, residentPiece : movingPiece.id };
@@ -881,8 +985,6 @@ function makeTurn ( socketId, post ){
 	if (  winnerAfterMove >= 0 ) {
 
 		room.endGame( winnerAfterMove );
-		
-		console.log ('=> winner', winnerAfterMove);
 
 	}else {
 
@@ -895,7 +997,6 @@ function makeTurn ( socketId, post ){
 			
 			room.endGame ( winnerAfterTurn );
 
-			console.log ('=> winner', winnerAfterTurn );
 		}
 
 	}
@@ -1099,9 +1200,15 @@ function initGame ( roomid )
 
 		var data = {
 
-			'game' : 1,
-			'gameType' : room.gameType,
 			'turn' : i == room.turn ? 'self' : 'oppo',
+			'game' : {
+				'multiplayer' : 1,
+				'timerOn' : room.gameType,
+				'time' : {
+					'prep' : room.prepTime,
+					'turn' : room.turnTime,
+				}
+			},
 			'players' : {
 				'self' : {
 					'username' : self.username,

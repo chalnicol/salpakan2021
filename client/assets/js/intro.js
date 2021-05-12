@@ -556,7 +556,7 @@ class Intro extends Phaser.Scene {
 
         this.bgmusic.stop();
 
-        this.scene.start ('SceneA', data );
+        this.time.delayedCall ( 500, () => this.scene.start ('SceneA', data ), [], this );
 
     }
 

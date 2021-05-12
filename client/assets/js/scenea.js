@@ -80,6 +80,8 @@ class SceneA extends Phaser.Scene {
 
         const sx = 960 - (sw * 9)/2 + sw/2, sy = 190;
 
+        const strlet = 'abcdefghi';
+
         for ( let i = 0; i < 72; i++ ) {
 
             let ix = Math.floor ( i/9 ), iy = i%9;
@@ -90,7 +92,9 @@ class SceneA extends Phaser.Scene {
 
             this.add.rectangle ( xp, yp, sw, sh, clr, 0.9 ).setStrokeStyle ( 5, 0xfefefe );
 
-            this.add.text ( xp + 60, yp - 30, i, { color:'#fff', fontFamily:'Oswald', fontSize: 20 }).setOrigin(0.5);
+            //this.add.circle ( xp + 60, yp - 30, 10, 0xffffff, 1 );
+
+            this.add.text ( xp + 70, yp - 35, strlet.charAt(iy) + (ix+1), { color:'#f3f3f3', fontFamily:'Oswald', fontSize: 18 }).setOrigin(0.5);
 
             this.gridData.push ( { 'x': xp, 'y': yp, 'resident' : 0, 'residentPiece' : '' });
         
@@ -161,13 +165,13 @@ class SceneA extends Phaser.Scene {
     initSocketIO () 
     {
 
-        socket.on ('oppoPlayerMove', data => {
+        socket.on ('playerHasMoved', data => {
 
             //console.log ( data );
 
             this.removeBlinkers ();
 
-            this.makeTurn ('oppo', data.post );
+            this.makeTurn ( data.plyr, data.post );
 
         });
 
@@ -215,11 +219,30 @@ class SceneA extends Phaser.Scene {
             this.endPrep ();
             
         });
+
+        socket.on ('endTurn', () => {
+
+            //console.log ('hey end');
+            if ( this.timerIsTicking ) this.stopTimer ();
+
+            this.playSound ('error');
+
+            this.endTurn ();
+            
+        });
         
+        socket.on('playerHasResign', data => {
+
+            this.endGame (data.winner);
+
+        });
+
         socket.on ('commenceGame', data => {
 
+            console.log ('hey commence');
+
             //..create oppo pieces..todo..
-            this.createGamePieces ('oppo', true, data.oppoPiece );
+            this.createGamePieces ('oppo', false, data.oppoPiece );
 
             //..
             this.startCommencement ();
@@ -264,6 +287,44 @@ class SceneA extends Phaser.Scene {
 
         });
 
+        socket.on('playerHasRevealed', data => {
+
+            this.playSound ('warp');
+
+            this.revealPieces ( data.plyr );
+
+            this.playerIndicatorsCont.getByName( data.plyrInd ).showReveal();
+
+            this.showPrompt (data.msg, 28, 0, true );
+
+
+
+            this.time.delayedCall ( 1500, () => this.removePrompt(), [], this );
+
+        });
+
+        socket.on('playerOfferedDraw', () => {
+
+            this.showDrawOfferPrompt();
+
+        });
+        
+        socket.on('playerDeclinesDraw', () => {
+
+            this.showPrompt ('Opponent has declined. Game resumes.', 30, 0, true );
+
+            this.time.delayedCall ( 2000, () => this.removePrompt(), [], this );
+
+        });
+
+        socket.on('gameIsADraw', () => {
+            
+            this.endGame ('');
+
+        });
+        
+
+
     }
 
     initPlayers () {
@@ -277,17 +338,13 @@ class SceneA extends Phaser.Scene {
             
             oppoChip = 0;
 
-        if (this.gameData.game == 0 ) {
+        if ( !this.gameData.game.multiplayer  ) {
 
-            //is single player..
             oppoUsername = names [ Phaser.Math.Between (0, names.length - 1) ] + ' (CPU)';
 
             oppoAI = true;
 
             oppoChip = this.gameData.players ['self'].chip == 0 ? 1 : 0;
-
-            //turn = this.gameData.players ['self'].chip == 0 ? 'self' : 'oppo';
-
 
         }  else {
 
@@ -523,7 +580,7 @@ class SceneA extends Phaser.Scene {
                
                 { 
                     
-                    desc : 'Make Ready',
+                    desc : 'Ready',
                     func : () => {
                         
                         this.showControls (false);
@@ -586,7 +643,7 @@ class SceneA extends Phaser.Scene {
   
             let xp = btnsLeft + ( i * spacing ), yp = btnsTop + 180;
 
-            let mainBtn = new MyButton ( this, xp, yp, 100, 100, 'mainBtn' + i, 'conts_sm', 'imgBtns',  i + frme ).setName ('mainBtn' + i );
+            let mainBtn = new MyButton ( this, xp, yp, 100, 100, 'mainBtn' + i, 'conts_sm', 'imgBtns',  i + frme ).setName ('mainBtn' + i ).setAlpha (0);
 
             mainBtn.on('pointerdown', function () {
                 
@@ -602,6 +659,14 @@ class SceneA extends Phaser.Scene {
 
                 mainBtnArr [i].func ();
 
+            });
+
+            this.add.tween ({
+                targets : mainBtn,
+                alpha : 1,
+                duration : 300,
+                ease : 'Power3',
+                delay : i*100
             });
 
             const txt = this.add.text (xp, yp + 70, mainBtnArr[i].desc, { color : '#fff', fontFamily:'Oswald', fontSize: 20 }).setOrigin(0.5).setName ( 'desc' + i );
@@ -638,7 +703,7 @@ class SceneA extends Phaser.Scene {
         this.add.tween ({
             targets : this.controlBtnsCont,
             x : ( show ) ? 1120 : 1920,
-            duration : show ? 500 : 300,
+            duration : 200,
             ease : 'Power3',
         });
 
@@ -827,9 +892,16 @@ class SceneA extends Phaser.Scene {
                     
                     this.removeBlinkers ();
 
-                    this.makeTurn ( this.turn, blinkb.post );
+                    if ( !this.gameData.game.multiplayer ) {
 
-                    if ( this.gameData.game == 1 ) socket.emit ('playerMove', { gridPost : blinkb.post });
+                        this.makeTurn ( this.turn, blinkb.post );
+
+                    }else {
+
+                        socket.emit ('playerMove', { gridPost : blinkb.post });
+
+                    }
+                     
 
                     
                 }); 
@@ -1064,6 +1136,8 @@ class SceneA extends Phaser.Scene {
     makeTurn ( plyr, post ) {
 
         //if ( this.gameInited && !this.gameOver  ) {
+        if ( this.timerIsTicking ) this.stopTimer ();
+
         const clashDelayAction =  200;
 
         const postOccupied = this.gridData [ post ].resident != 0;
@@ -1173,7 +1247,7 @@ class SceneA extends Phaser.Scene {
 
         }
 
-        if ( this.timerIsTicking ) this.stopTimer ();
+        
 
         //checkWinner...
         this.time.delayedCall ( 600, () => {
@@ -1232,7 +1306,8 @@ class SceneA extends Phaser.Scene {
             targets : this.capturedCont,
             y : (show) ? 0 : 1080,
             duration : 300,
-            ease : 'Power3'
+            easeParams : [1.1, 0.8 ],
+            ease : 'Elastic'
         });
 
     }
@@ -1432,15 +1507,13 @@ class SceneA extends Phaser.Scene {
 
             this.showControls ();
 
-            console.log ( 'this is called asd', this.gameData.gameType );
-
-            if ( this.gameData.gameType == 1 ) {
+            if ( this.gameData.game.timerOn == 1 ) {
 
                 this.playerIndicatorsCont.getByName ('self').showTimer();
 
                 this.startPrepTimer ();
 
-                if ( this.gameData.game == 1 ) socket.emit ('prepStarted');
+                if ( this.gameData.game.multiplayer == 1 ) socket.emit ('prepStarted');
                 
             } 
            
@@ -1451,72 +1524,50 @@ class SceneA extends Phaser.Scene {
 
     startPrepTimer (){
 
-        var prepTime = 10;
-
         this.timerIsTicking = true;
 
-        //..
-        var counter = 0;
-
-        this.gameTimer = this.time.addEvent ({
-
-            delay : 1000,
-            callback : function () {
-                
-                counter++;
-
-                for ( var i in this.players) {
-                    
-                    if ( !this.players[i].isReady ) this.playerIndicatorsCont.getByName (i).tick ( counter/prepTime );
-
-                }
-                
-                if ( counter >= prepTime ) {
-
-                    this.stopTimer();
-
-                    this.endPrep ();   
-                }
-
-            },
-            callbackScope : this,
-            repeat : prepTime - 1
-
-        });
-        
+        this.gameTimer = this.time.delayedCall ( this.gameData.game.time.prep * 1000, () => {
+            this.stopTimer ();
+            this.endPrep ();   
+        }, [], this);
 
     }
 
     startTurnTimer () {
 
-        var turnTime = 10; 
-
         this.timerIsTicking = true;
 
-        var counter = 0;
-
         this.playerIndicatorsCont.getByName (this.turn).showTimer ();
+        
+        this.gameTimer = this.time.delayedCall ( this.gameData.game.time.turn * 1000, () => {
 
-        this.gameTimer = this.time.addEvent ({
-            delay : 1000,
-            callback : function () {
+            this.stopTimer();
+
+            this.endTurn ();
+
+        }, [], this);
+
+
+        // var counter = 0;
+
+        // this.playerIndicatorsCont.getByName (this.turn).showTimer ();
+
+        // this.gameTimer = this.time.addEvent ({
+        //     delay : 1000,
+        //     callback : function () {
                 
-                counter++;
+        //         counter++;
 
-                this.playerIndicatorsCont.getByName (this.turn).tick ( counter/turnTime );
+        //         this.playerIndicatorsCont.getByName (this.turn).tick ( counter/turnTime );
 
-                if ( counter >= turnTime ) {
+        //         if ( counter >= turnTime ) {
                     
-                    this.stopTimer();
-
-                    if ( this.turn == 'self' ) this.selfCleanUp ();
-
-                    this.switchTurn ();
-                }
-            },
-            callbackScope : this,
-            repeat : turnTime - 1
-        })
+                   
+        //         }
+        //     },
+        //     callbackScope : this,
+        //     repeat : turnTime - 1
+        // })
  
     }
 
@@ -1524,11 +1575,13 @@ class SceneA extends Phaser.Scene {
 
         this.timerIsTicking = false;
 
-        this.gameTimer.remove ();
+        this.gameTimer.destroy ();
+
+        //this.time.removeEvent ( this.gameTimer );
 
     }
 
-    selfCleanUp () {
+    cleanUp () {
 
         if ( this.pieceClicked != '' ) {
 
@@ -1539,23 +1592,24 @@ class SceneA extends Phaser.Scene {
             this.pieceClicked = '';
         }
 
-        //deactive main btns..
-        for ( var i = 0; i < 3; i++ ) {
-
-            this.controlBtnsCont.getByName ('mainBtn' + i ).setBtnEnabled (false);
-        }
-
+       
         //deactive self pieces..
-        this.activatePieces ( 'self', false );
+        this.activatePieces ('self', false );
     }
 
     endPrep () 
     {
 
-        this.selfCleanUp ();
+        this.cleanUp ();
+
+         //deactive main btns..
+         for ( var i = 0; i < 3; i++ ) {
+            this.controlBtnsCont.getByName ('mainBtn' + i ).setBtnEnabled (false);
+        }
+
 
         //..
-        if ( this.gameData.game == 0 ) {
+        if ( !this.gameData.game.multiplayer ) {
 
             if ( this.timerIsTicking ) this.stopTimer ();
 
@@ -1580,9 +1634,14 @@ class SceneA extends Phaser.Scene {
 
     }
 
-    startCommencement () {
+    endTurn () 
+    {
+        this.cleanUp ();
 
-        console.log ( 'this is called' );
+        this.switchTurn ();
+    }
+
+    startCommencement () {
 
         if ( this.timerIsTicking ) this.stopTimer ();
 
@@ -1591,15 +1650,12 @@ class SceneA extends Phaser.Scene {
             var inds = this.playerIndicatorsCont.getByName (i);
 
             if ( !inds.isReady ) inds.ready ();
+
         }
 
-        this.time.delayedCall ( 800, () => {
+        if ( !this.controlsHidden ) this.showControls (false);
 
-            this.switchMainControls( 1 );
-
-            this.showCommenceScreen ();
-
-        }, [], this);
+        this.time.delayedCall ( 800, () => this.showCommenceScreen (), [], this);
 
     }
 
@@ -1660,6 +1716,8 @@ class SceneA extends Phaser.Scene {
 
                     this.startGame ();
 
+
+
                 }
 
             },
@@ -1672,33 +1730,25 @@ class SceneA extends Phaser.Scene {
 
     startGame () {
 
+        if ( this.gameData.game.multiplayer )  socket.emit ('gameStarted');
+
         this.gamePhase = 1;
 
         this.gameInited = true;
+
+        this.switchMainControls (1);
     
         this.setTurnIndicator ( this.turn );
 
         this.startTurn ( 1000 );
         
-        if ( this.gameData.game == 1 ){
-
-            socket.emit ('gameStarted');
-            
-        }
-
     }
 
     startTurn ( delay = 500 ) {
 
 
-        if ( this.gameData.gameType == 1 ) {
+        if ( this.gameData.game.timerOn == 1 ) this.startTurnTimer ();
             
-            this.playerIndicatorsCont.getByName (this.turn).showTimer ();
-
-            if ( this.gameData.game == 0  ) this.startTurnTimer ();
-
-        }
-
         if ( this.players [ this.turn ].isAI ) {
            
             this.time.delayedCall ( delay, () => this.makeAI(), [], this);
@@ -1706,7 +1756,6 @@ class SceneA extends Phaser.Scene {
         }else {
 
             if ( this.turn == 'self' ) this.activatePieces ('self');
-
         }
 
     }
@@ -1742,14 +1791,29 @@ class SceneA extends Phaser.Scene {
 
     }
     
-    revealPieces () {
+    revealPieces ( plyr = '' ) {
 
-        this.piecesCont.iterate ( child => {
-            if ( !child.flippedUp ) child.flip();
-        });
-        this.capturedCont.last.iterate ( child => {
-            if ( !child.flippedUp ) child.flip();
-        });
+        if (plyr != '') {
+
+            this.piecesCont.iterate ( child => {
+                if ( child.player == plyr && !child.flippedUp ) child.flip();
+            });
+            this.capturedCont.last.iterate ( child => {
+                if ( child.player == plyr && !child.flippedUp ) child.flip();
+            });
+
+        }else {
+
+            this.piecesCont.iterate ( child => {
+                if ( !child.flippedUp ) child.flip();
+            });
+            this.capturedCont.last.iterate ( child => {
+                if ( !child.flippedUp ) child.flip();
+            });
+
+            
+        }
+        
         
     }
     //..
@@ -1770,7 +1834,7 @@ class SceneA extends Phaser.Scene {
 
             //let pInd = this.add.container ( sx + (counter * ( w+sp)), sy ).setName (i);
 
-            let pInd = new Indicator (this, sx + (counter * ( w+sp )), sy, i, this.players [i].username, this.gameData.gameType == 1 );
+            let pInd = new Indicator (this, sx + (counter * ( w+sp )), sy, i, this.players [i].username, this.gameData.game.timerOn );
 
             this.playerIndicatorsCont.add ( pInd );
 
@@ -1858,7 +1922,7 @@ class SceneA extends Phaser.Scene {
 
     sendEmoji ( emoji ) {
 
-        if ( this.gameData.game == 0) {
+        if ( !this.gameData.game.multiplayer ) {
 
             this.time.delayedCall ( 500, () => {
 
@@ -2000,6 +2064,8 @@ class SceneA extends Phaser.Scene {
 
             this.playerIndicatorsCont.getByName (j).reset ();
 
+            this.players [j].isReady = false;
+
             this.capturedCounter [j] = 0;
         }
 
@@ -2039,10 +2105,9 @@ class SceneA extends Phaser.Scene {
 
         let txt = this.add.text (  0, txtPos, myTxt, { fontSize: fs, fontFamily:'Oswald', color: '#6e6e6e' }).setOrigin(0.5);
 
-        miniCont.add ([img, txt]);
+        miniCont.add ([ img, txt ]);
 
         if ( btnArr.length > 0 ) {
-
 
             const bw = 190, bh = 80, sp = 20;
 
@@ -2102,12 +2167,13 @@ class SceneA extends Phaser.Scene {
 
                     this.removePrompt();
 
-                    if ( this.gameData.game == 0 ) {
+                    if ( !this.gameData.game.multiplayer ) {
 
                         this.endGame ('oppo');
 
                     }else {
 
+                        socket.emit('playerResigns');
                         //todo..
                     }
                     
@@ -2132,14 +2198,13 @@ class SceneA extends Phaser.Scene {
                 'txt' : 'Proceed', 
                 'func' : () => {
 
-
                     this.removePrompt()
 
                     this.controlBtnsCont.getByName ('mainBtn0').setBtnEnabled (false);
 
-                    if ( this.gameData.game == 0 ) {
+                    this.showPrompt ('Waiting for response..', 34, 0, true );
 
-                        this.showPrompt ('Waiting for response..', 34, 0, true );
+                    if ( !this.gameData.game.multiplayer ) {
 
                         this.time.delayedCall ( 800, () => {
 
@@ -2151,12 +2216,10 @@ class SceneA extends Phaser.Scene {
 
                                 this.time.delayedCall ( 2000, () => this.removePrompt(), [], this );
 
-
                             }else {
 
                                 //his.showPrompt ('..', 34, 0, true );
                                 this.endGame ('');
-
 
                             }
 
@@ -2164,10 +2227,9 @@ class SceneA extends Phaser.Scene {
 
                     }else {
 
-                        //todo..
-                    }
-                    
+                        socket.emit ('playerOffersDraw');
 
+                    }
                     
                 }
             },
@@ -2182,6 +2244,33 @@ class SceneA extends Phaser.Scene {
 
     }
 
+    showDrawOfferPrompt ()
+    {
+
+        const btnArr = [
+
+            { 
+                'txt' : 'Accept', 
+                'func' : () => {
+                    this.removePrompt ();
+                    socket.emit ('playerDrawResponse', { response : 1 });
+                }
+                
+            },
+            { 
+                'txt' : 'Decline', 
+                'func' : () => {
+                    this.removePrompt ();
+                    socket.emit ('playerDrawResponse', { response : 0 });
+                }
+            },
+
+        ];
+
+        this.showPrompt ( 'Opponent has offered a draw?', 30, -30, false, btnArr );
+
+    }
+
     showRevealPrompt () {
 
         const btnArr = [
@@ -2190,24 +2279,26 @@ class SceneA extends Phaser.Scene {
                 'txt' : 'Proceed', 
                 'func' : () => {
 
-                    if ( this.gameData.game == 0 ) {
+                    this.removePrompt ();
+
+                    this.controlBtnsCont.getByName ('mainBtn2').setBtnEnabled (false);
+
+                    if ( !this.gameData.game.multiplayer ) {
 
                         this.playSound ('warp');
 
-                        this.controlBtnsCont.getByName ('mainBtn2').setBtnEnabled (false);
-
                         this.playerIndicatorsCont.getByName('oppo').showReveal();
 
-                        this.showPrompt ('Your pieces are revealed to the opponent.', 30, 0, true );
+                        this.showPrompt ('Your pieces are revealed to the opponent.', 28, 0, true );
 
                         this.time.delayedCall ( 1500, () => this.removePrompt(), [], this );
                             
-                        console.log ('this...');
-                        
+                        //console.log ('this...');                        
 
                     }else {
 
                         //todo..
+                        socket.emit ('playerReveals');
                         
                     }
 
@@ -2261,7 +2352,7 @@ class SceneA extends Phaser.Scene {
 
     playerRematch () {
 
-        if ( this.gameData.game == 0 ) {
+        if ( !this.gameData.game.multiplayer ) {
             
             this.resetGame ();
 
@@ -2316,26 +2407,28 @@ class SceneA extends Phaser.Scene {
         this.scene.start ('Intro');
     }
 
-    // update ( time, delta ) {
+    update ( time, delta ) {
 
-    //     if ( this.timerIsTicking ) {
+        if ( this.timerIsTicking ) {
 
-    //         const progress = this.gameTimer.getProgress();
+            const progress = this.gameTimer.getProgress();
 
-    //         if ( this.gamePhase == 0 ){
+            if ( this.gamePhase == 0 ){
             
-    //             this.playerIndicatorsCont.getByName ('self').tick ( progress );
+                for ( var i in this.players) {
+                    
+                    if ( !this.players[i].isReady ) this.playerIndicatorsCont.getByName (i).tick ( progress );
 
-    //             this.playerIndicatorsCont.getByName ('oppo').tick ( progress );
-            
-    //         }else {
+                }
 
-    //             this.playerIndicatorsCont.getByName ( this.turn).tick ( progress );
-    //         }
+            }else {
+
+                this.playerIndicatorsCont.getByName ( this.turn).tick ( progress );
+            }
            
             
-    //     }
-    // }
+        }
+    }
 
 
 }
