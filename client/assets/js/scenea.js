@@ -16,24 +16,8 @@ class SceneA extends Phaser.Scene {
         this.gameData = data;
 
         this.emojisThread = [];
-        
-        this.gameOver = false;
-
-        this.gameInited = false;
-
-        this.isEmoji = false;
-
-        this.sentEmojisShown = false;
-
-        this.musicOff = false;
-
-        this.soundOff = false;
-
-        this.timerIsTicking = false;
 
         this.gridData = [];
-
-        this.pieceClicked = '';
 
         this.gamePiecesData = [
 
@@ -63,13 +47,31 @@ class SceneA extends Phaser.Scene {
             [1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25]
         ];
 
+        this.players = {};
+
+        this.gameOver = false;
+
+        this.gameInited = false;
+
+        this.isEmoji = false;
+
+        this.sentEmojisShown = false;
+
+        this.musicOff = false;
+
+        this.soundOff = false;
+
+        this.timerIsTicking = false;
+
+        this.timerPaused = false;
+
+        this.controlsHidden = true;
+
+        this.pieceClicked = '';
+
         this.gamePhase = 0;
 
         this.presetIndex = 0;
-
-        this.players = {};
-
-        this.controlsHidden = true;
 
         
         //add bg
@@ -225,8 +227,6 @@ class SceneA extends Phaser.Scene {
             //console.log ('hey end');
             if ( this.timerIsTicking ) this.stopTimer ();
 
-            this.playSound ('error');
-
             this.endTurn ();
             
         });
@@ -303,17 +303,33 @@ class SceneA extends Phaser.Scene {
 
         });
 
-        socket.on('playerOfferedDraw', () => {
+        socket.on('playerOfferedDraw', data => {
 
-            this.showDrawOfferPrompt();
+            if ( data.withTimer ) this.toggleTimer ();
+
+            if ( data.type == 0 ) {
+
+                this.showPrompt ('Waiting for response..', 34, 0, true );
+
+            }else {
+
+                this.showDrawOfferPrompt();
+            }
+            
 
         });
         
         socket.on('playerDeclinesDraw', () => {
 
-            this.showPrompt ('Opponent has declined. Game resumes.', 30, 0, true );
+            this.showPrompt ('Opponent has declined. Game will resume.', 30, 0, true );
 
-            this.time.delayedCall ( 2000, () => this.removePrompt(), [], this );
+        });
+
+        socket.on('resumeGame', () => {
+
+            this.removePrompt();
+
+            this.toggleTimer ();
 
         });
 
@@ -1494,6 +1510,22 @@ class SceneA extends Phaser.Scene {
 
     }
 
+    cleanUp () {
+
+        if ( this.pieceClicked != '' ) {
+
+            this.piecesCont.getByName ( this.pieceClicked ).setPicked (false);
+
+            this.removeBlinkers ();
+
+            this.pieceClicked = '';
+        }
+
+       
+        //deactive self pieces..
+        this.activatePieces ('self', false );
+    }
+
     startPrep ()
     {
 
@@ -1511,7 +1543,7 @@ class SceneA extends Phaser.Scene {
 
                 this.playerIndicatorsCont.getByName ('self').showTimer();
 
-                this.startPrepTimer ();
+                this.startTimer ();
 
                 if ( this.gameData.game.multiplayer == 1 ) socket.emit ('prepStarted');
                 
@@ -1520,81 +1552,6 @@ class SceneA extends Phaser.Scene {
 
         }, [], this );
 
-    }
-
-    startPrepTimer (){
-
-        this.timerIsTicking = true;
-
-        this.gameTimer = this.time.delayedCall ( this.gameData.game.time.prep * 1000, () => {
-            this.stopTimer ();
-            this.endPrep ();   
-        }, [], this);
-
-    }
-
-    startTurnTimer () {
-
-        this.timerIsTicking = true;
-
-        this.playerIndicatorsCont.getByName (this.turn).showTimer ();
-        
-        this.gameTimer = this.time.delayedCall ( this.gameData.game.time.turn * 1000, () => {
-
-            this.stopTimer();
-
-            this.endTurn ();
-
-        }, [], this);
-
-
-        // var counter = 0;
-
-        // this.playerIndicatorsCont.getByName (this.turn).showTimer ();
-
-        // this.gameTimer = this.time.addEvent ({
-        //     delay : 1000,
-        //     callback : function () {
-                
-        //         counter++;
-
-        //         this.playerIndicatorsCont.getByName (this.turn).tick ( counter/turnTime );
-
-        //         if ( counter >= turnTime ) {
-                    
-                   
-        //         }
-        //     },
-        //     callbackScope : this,
-        //     repeat : turnTime - 1
-        // })
- 
-    }
-
-    stopTimer () {
-
-        this.timerIsTicking = false;
-
-        this.gameTimer.destroy ();
-
-        //this.time.removeEvent ( this.gameTimer );
-
-    }
-
-    cleanUp () {
-
-        if ( this.pieceClicked != '' ) {
-
-            this.piecesCont.getByName ( this.pieceClicked ).setPicked (false);
-
-            this.removeBlinkers ();
-
-            this.pieceClicked = '';
-        }
-
-       
-        //deactive self pieces..
-        this.activatePieces ('self', false );
     }
 
     endPrep () 
@@ -1634,11 +1591,73 @@ class SceneA extends Phaser.Scene {
 
     }
 
-    endTurn () 
-    {
-        this.cleanUp ();
+    startTimer ( phase = 0 ) {
 
-        this.switchTurn ();
+        console.log ('this is called');
+
+        var time = ( phase == 0 ) ? this.gameData.game.time.prep : this.gameData.game.time.turn;
+
+        var del = 50, totalTick = time*1000/del;
+
+        this.timerIsTicking = true;
+
+        this.timerPaused = false;
+
+        this.timerCount = 0;
+
+        this.gameTimer = setInterval(() => {
+
+            if (!this.timerPaused ) {
+
+                this.timerCount ++;
+
+                if ( this.timerCount < totalTick ){
+
+                    var progress = this.timerCount/totalTick;
+
+                    if ( phase == 0) {
+
+                        for ( var i in this.players) {
+        
+                            if ( !this.players[i].isReady ) this.playerIndicatorsCont.getByName (i).tick ( progress );
+                        }
+
+                    }else {
+
+                        this.playerIndicatorsCont.getByName ( this.turn).tick ( progress );
+                    }
+
+                }else {
+
+                    this.stopTimer ();
+
+                    if ( phase == 0 ) {
+                        this.endPrep ();
+                    }else {
+                        this.endTurn ();
+                    }
+
+                }
+            }
+                
+        }, del);
+
+    }
+
+    toggleTimer () {
+        this.timerPaused = !this.timerPaused;
+    }
+
+    stopTimer () {  
+
+        this.timerCount = 0;
+
+        this.timerPaused = true;
+
+        this.timerIsTicking = false;
+
+        clearInterval ( this.gameTimer );
+
     }
 
     startCommencement () {
@@ -1746,8 +1765,7 @@ class SceneA extends Phaser.Scene {
 
     startTurn ( delay = 500 ) {
 
-
-        if ( this.gameData.game.timerOn == 1 ) this.startTurnTimer ();
+        if ( this.gameData.game.timerOn == 1 ) this.startTimer (1);
             
         if ( this.players [ this.turn ].isAI ) {
            
@@ -1758,6 +1776,15 @@ class SceneA extends Phaser.Scene {
             if ( this.turn == 'self' ) this.activatePieces ('self');
         }
 
+    }
+
+    endTurn () 
+    {
+        this.playSound ('clickc');
+
+        this.cleanUp ();
+
+        this.switchTurn ();
     }
 
     activatePieces ( plyr, enabled = true ) {
@@ -2202,29 +2229,14 @@ class SceneA extends Phaser.Scene {
 
                     this.controlBtnsCont.getByName ('mainBtn0').setBtnEnabled (false);
 
-                    this.showPrompt ('Waiting for response..', 34, 0, true );
-
                     if ( !this.gameData.game.multiplayer ) {
 
-                        this.time.delayedCall ( 800, () => {
+                        if ( this.gameData.game.timerOn ) this.toggleTimer();
 
-                            const decision = Math.floor ( Math.random() * 1000 );
+                        this.showPrompt ('Waiting for response..', 34, 0, true );
 
-                            if ( decision > 200 ) {
-
-                                this.showPrompt ('Opponent has declined. Game resumes.', 30, 0, true );
-
-                                this.time.delayedCall ( 2000, () => this.removePrompt(), [], this );
-
-                            }else {
-
-                                //his.showPrompt ('..', 34, 0, true );
-                                this.endGame ('');
-
-                            }
-
-                        }, [], this );
-
+                        this.time.delayedCall ( 2000, () => this.aiDrawResponse (), [], this);
+                        
                     }else {
 
                         socket.emit ('playerOffersDraw');
@@ -2232,6 +2244,7 @@ class SceneA extends Phaser.Scene {
                     }
                     
                 }
+
             },
             { 
                 'txt' : 'Cancel', 
@@ -2241,6 +2254,29 @@ class SceneA extends Phaser.Scene {
         ];
 
         this.showPrompt ( 'Are you sure you want to offer a draw?', 30, -30, false, btnArr );
+
+    }
+
+    aiDrawResponse () {
+
+        const decision = Math.floor ( Math.random() * 1000 );
+
+        if ( decision > 200 ) {
+
+            this.showPrompt ('Opponent has declined. Game will resume.', 30, 0, true );
+
+            this.time.delayedCall ( 2000, () => {
+
+                this.removePrompt()
+
+                this.toggleTimer();
+
+            }, [], this );
+
+        }else {
+
+            this.endGame ('');
+        }
 
     }
 
@@ -2408,26 +2444,7 @@ class SceneA extends Phaser.Scene {
     }
 
     update ( time, delta ) {
-
-        if ( this.timerIsTicking ) {
-
-            const progress = this.gameTimer.getProgress();
-
-            if ( this.gamePhase == 0 ){
-            
-                for ( var i in this.players) {
-                    
-                    if ( !this.players[i].isReady ) this.playerIndicatorsCont.getByName (i).tick ( progress );
-
-                }
-
-            }else {
-
-                this.playerIndicatorsCont.getByName ( this.turn).tick ( progress );
-            }
-           
-            
-        }
+        //..
     }
 
 

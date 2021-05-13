@@ -133,6 +133,7 @@ class GameRoom {
 
 		this.pieceToMove = '';
 
+		this.timerPaused = false;
 		//
 
 	}
@@ -230,33 +231,38 @@ class GameRoom {
 
 		this.timeIsTicking = true;
 
-		this.myTimer = setTimeout (() => {
+		this.myTimer = setInterval (() => {
 
-			//if ( this.isGamePaused ) return;
+			if ( !this.timerPaused ) {
 
-			// this.timerCounter += 1;
+				this.timerCounter += 1;
 
-			// if ( this.timerCounter >= time ) {
+				if ( this.timerCounter >= time ) {
 
-				
-			// }
+					this.stopTimer();
 
-			this.stopTimer();
+					if ( phase == 0 ) {
+						this.endPrep();
+					}else {
+						this.endTurn ();
+					}
 
-			if ( phase == 0 ) {
-				this.endPrep();
-			}else {
-				this.endTurn ();
-				//this.switchTurn ();
-			
+				}
 			}
 
-		}, time*1000 );
+		}, 1000 );
 
 
 	}
 
+	toggleTimer ()
+	{
+		this.timerPaused = !this.timerPaused;
+	}
+
 	stopTimer () {
+
+		this.timerPaused = false;
 
 		this.timeIsTicking = false;
 
@@ -801,9 +807,15 @@ io.on('connection', function(socket){
 
 			var room = roomList [ plyr.roomId ];
 
-			var oppoId = room.players[ plyr.roomIndex == 0 ? 1 : 0 ];
+			if ( room.gameType == 1 ) room.toggleTimer ();
 
-			socketList [ oppoId ].emit ('playerOfferedDraw');
+			for ( var i in room.players ) {
+
+				var type = room.players[i] == socket.id ? 0 : 1;
+
+				socketList [ room.players[i] ].emit ('playerOfferedDraw', { 'type' : type, 'withTimer' : room.gameType });
+
+			}
 
 		}
 
@@ -828,6 +840,18 @@ io.on('connection', function(socket){
 			var oppoId = room.players[ plyr.roomIndex == 0 ? 1 : 0 ];
 
 			socketList [ oppoId ].emit ('playerDeclinesDraw');
+
+			setTimeout (() => {
+
+				for ( var i in room.players ) {
+
+					socketList [ room.players[i] ].emit ('resumeGame');
+				}
+
+				room.toggleTimer();
+
+			}, 2000 );
+			
 
 		}
 
