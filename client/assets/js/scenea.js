@@ -224,7 +224,6 @@ class SceneA extends Phaser.Scene {
 
         socket.on ('endTurn', () => {
 
-            //console.log ('hey end');
             if ( this.timerIsTicking ) this.stopTimer ();
 
             this.endTurn ();
@@ -238,8 +237,6 @@ class SceneA extends Phaser.Scene {
         });
 
         socket.on ('commenceGame', data => {
-
-            console.log ('hey commence');
 
             //..create oppo pieces..todo..
             this.createGamePieces ('oppo', false, data.oppoPiece );
@@ -319,9 +316,9 @@ class SceneA extends Phaser.Scene {
 
         });
         
-        socket.on('playerDeclinesDraw', () => {
+        socket.on('playerDeclinesDraw', data => {
 
-            this.showPrompt ('Opponent has declined. Game will resume.', 30, 0, true );
+            this.showPrompt (data.msg, 30, 0, true );
 
         });
 
@@ -1377,8 +1374,6 @@ class SceneA extends Phaser.Scene {
 
     switchTurn () {
 
-        //console.log ('switch..');
-
         this.turn = ( this.turn == 'self' ) ? 'oppo' : 'self';
         
         this.setTurnIndicator ( this.turn );
@@ -1386,14 +1381,11 @@ class SceneA extends Phaser.Scene {
         if ( this.isFlagHome ( this.turn ) ) {
 
             this.endGame ( this.turn);
-
         }else {
 
             this.startTurn ();
-
         }
        
-
     }
 
     createParticlesAnim ( post, clr ) {
@@ -1592,8 +1584,6 @@ class SceneA extends Phaser.Scene {
     }
 
     startTimer ( phase = 0 ) {
-
-        console.log ('this is called');
 
         var time = ( phase == 0 ) ? this.gameData.game.time.prep : this.gameData.game.time.turn;
 

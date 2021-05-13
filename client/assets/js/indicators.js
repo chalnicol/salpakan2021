@@ -20,9 +20,9 @@ class Indicator extends Phaser.GameObjects.Container {
 
         let wins = this.scene.add.text ( -150, 6, 'Win : 0', { fontSize: 26, fontFamily:'Oswald', color: '#9f9f9f' });
 
-        let rev = this.scene.add.image ( 165, -15, 'inds', 4 ).setScale (0.9).setVisible (false);
+        let rev = this.scene.add.image ( 145, -15, 'inds', 4 ).setVisible (false); //setScale (0.9);
 
-        let state = this.scene.add.image ( 205, -15, 'inds', 0 ).setScale (0.9);
+        let state = this.scene.add.image ( 190, -15, 'inds', 0 );//.setScale (0.9);
 
         this.add ( [ img, name, wins, rev, state]);
 

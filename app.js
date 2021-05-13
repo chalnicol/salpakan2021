@@ -534,7 +534,7 @@ io.on('connection', function(socket){
 
 				let inviteId = 'party_' + Date.now() + '_' + Math.floor ( Math.random() * 99999 );
 
-				let newInvite = new Invite ( inviteId, host.id, friend.id )
+				let newInvite = new Invite ( inviteId, host.id, friend.id, data.gameType )
 
 				inviteList [ inviteId ] = newInvite;
 
@@ -837,9 +837,13 @@ io.on('connection', function(socket){
 
 		}else {
 
-			var oppoId = room.players[ plyr.roomIndex == 0 ? 1 : 0 ];
+			for ( var i in room.players ) {
 
-			socketList [ oppoId ].emit ('playerDeclinesDraw');
+				var msg =  ( room.players[i] == socket.id ) ? 'Please wait. Game resumes.' : 'Opponent has declined. Game resumes.';
+
+				socketList [ room.players[i] ].emit ('playerDeclinesDraw', {  msg : msg });
+
+			}
 
 			setTimeout (() => {
 
@@ -856,7 +860,6 @@ io.on('connection', function(socket){
 		}
 
 	});
-
 
 	socket.on("sendEmoji", ( data ) => {
 

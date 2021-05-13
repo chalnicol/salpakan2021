@@ -10,7 +10,7 @@ class Intro extends Phaser.Scene {
     create () 
     {
 
-        this.menuPick  = 0;
+        this.selected  = { game : 0, gameType : 0 };
 
         this.invites = [];
 
@@ -143,7 +143,7 @@ class Intro extends Phaser.Scene {
         const sx = 960 -( ((3*(bw+bsp)) - bsp)/2) + bw/2 , sy = 692;
 
         //add menu
-        this.menuTxt.text = last ? '- Select Game Type -' : '- Select Play -';
+        this.menuTxt.text = !last ? '- Select Play -' : '- Select Game Type -';
 
         for ( let i = 0; i < 3; i++ ) {
 
@@ -179,12 +179,11 @@ class Intro extends Phaser.Scene {
             });
             rct.on ('pointerup', () => {
 
-
                 rct.setScale(1).clearTint ();
 
                 if ( !last ) {
 
-                    this.menuPick = i;
+                    this.selected.game = i;
 
                     this.removeMenu ();
 
@@ -193,17 +192,24 @@ class Intro extends Phaser.Scene {
                 }else {
 
                     
-                    if ( i > 0  ) {
+                    if ( i == 0  ) {
 
-                        if ( this.menuPick < 2 ) {
+                        this.removeMenu ();
 
-                            const tosend = { 'game' : this.menuPick, 'gameType' : ( i - 1 )};
+                        this.time.delayedCall( 400, () => this.createMenu (), [], this );
+
+                    }else {
+
+                        this.selected.gameType = (i - 1);
+
+
+                        if ( this.selected.game < 2 ) {
 
                             //console.log ( tosend );
 
-                            socket.emit ('enterGame', tosend );
+                            socket.emit ('enterGame', this.selected );
 
-                            if ( this.menuPick == 0) {
+                            if ( this.selected.game  == 0) {
 
                                 this.showPrompt('Please Wait..', 0, 40, 0, 0, 'prompt_sm' );
                             }else {
@@ -217,12 +223,8 @@ class Intro extends Phaser.Scene {
                             this.showPairingScreen();
                         }
 
-                    } else {
-
-                        this.removeMenu ();
-
-                        this.time.delayedCall( 400, () => this.createMenu (), [], this );
-                    }
+                    
+                    } 
                    
 
                 }
@@ -501,7 +503,11 @@ class Intro extends Phaser.Scene {
             {
                 btnTxt : 'Accept',
                 func : () => {
+
                     this.removePrompt ();
+
+                    this.showPrompt ('Connecting..', 0, 40, 0, 0, 'prompt_sm' );
+
                     socket.emit ('pairingResponse', { 'inviteId':id, 'response' : 1 });
                 }
             }
@@ -528,7 +534,7 @@ class Intro extends Phaser.Scene {
 
     pair ( str ) {
 
-        socket.emit ('pair', {'pairingId' : str, 'gameType' : 0 });
+        socket.emit ('pair', {'pairingId' : str, 'gameType' : this.selected.gameType });
 
         this.pairingScreenCont.destroy();
 
