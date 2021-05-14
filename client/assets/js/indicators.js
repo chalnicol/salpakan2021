@@ -33,7 +33,7 @@ class Indicator extends Phaser.GameObjects.Container {
 
             graphics.fillStyle(0x66ff66, 1);
 
-            graphics.fillCircleShape( new Phaser.Geom.Circle( -202, 0, 33 ));
+            graphics.fillCircleShape( new Phaser.Geom.Circle( -202, 0, 32 ));
 
             this.add ( graphics );
 
@@ -104,7 +104,7 @@ class Indicator extends Phaser.GameObjects.Container {
 
             this.last.fillStyle(0x66ff66, 1);
 
-            this.last.fillCircleShape( new Phaser.Geom.Circle( -202, 0, 33 ));
+            this.last.fillCircleShape( new Phaser.Geom.Circle( -202, 0, 32 ));
 
         }
         
@@ -127,7 +127,7 @@ class Indicator extends Phaser.GameObjects.Container {
 
         this.last.fillStyle( clr, 1 );
 
-        this.last.slice(-202, 0, 33, Phaser.Math.DegToRad(270), Phaser.Math.DegToRad(270 + Math.floor ( 360 * progress ) ), true);
+        this.last.slice(-202, 0, 32, Phaser.Math.DegToRad(270), Phaser.Math.DegToRad(270 + Math.floor ( 360 * progress ) ), true);
 
         this.last.fillPath();
 
