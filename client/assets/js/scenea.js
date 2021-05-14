@@ -96,7 +96,7 @@ class SceneA extends Phaser.Scene {
 
             //this.add.circle ( xp + 60, yp - 30, 10, 0xffffff, 1 );
 
-            this.add.text ( xp + 70, yp - 35, strlet.charAt(iy) + (ix+1), { color:'#f3f3f3', fontFamily:'Oswald', fontSize: 18 }).setOrigin(0.5);
+            this.add.text ( xp + 75, yp - 40, '00', { color:'#f3f3f3', fontFamily:'Oswald', fontSize: 18 }).setOrigin(0.5);
 
             this.gridData.push ( { 'x': xp, 'y': yp, 'resident' : 0, 'residentPiece' : '' });
         
