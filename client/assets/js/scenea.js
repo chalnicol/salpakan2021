@@ -824,9 +824,9 @@ class SceneA extends Phaser.Scene {
 
         const orderArr = this.generateRandomArr ( 21 );
 
-        for ( var i = 0; i < 27; i++ ) {
-            this.gridData [ i + 45 ].resident = 0;
-            this.gridData [ i + 45 ].residentPiece = '';
+        for ( let j = 0; j < 27; j++ ) {
+            this.gridData [ j + 45 ].resident = 0;
+            this.gridData [ j + 45 ].residentPiece = '';
         }
 
         for ( let i in postArr ) {

@@ -17,7 +17,7 @@ window.onload = function () {
             disableWebAudio: false
         },
         backgroundColor: '#ffffff',
-        scene: [ Preloader, Intro, SceneA ]
+        scene: [ Preloader, Intro ]
     };
 
     new Phaser.Game(config);
